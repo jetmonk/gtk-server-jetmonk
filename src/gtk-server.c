@@ -477,6 +477,7 @@
 *               . Bugfix in gtk_server_unpack so it can unpack values larger than a byte.
 *               . New function 'gtk_server_unpack_from_pointer' from Jop Brown
 *               . New function 'gtk_server_string_from_pointer' from Jop Brown
+*		. Upgraded to uthash 2.1.0 (https://troydhanson.github.io)
 *
 *************************************************************************************************************************************************/
 

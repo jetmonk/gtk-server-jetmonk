@@ -479,6 +479,11 @@
 *               . New function 'gtk_server_string_from_pointer' from Jop Brown
 *		. Upgraded to uthash 2.1.0 (https://troydhanson.github.io)
 *
+* CHANGES GTK-SERVER 2.4.6
+* ------------------------
+*               . Fixed compile warning with GCC 7 and GCC 8.
+*               . Changed 'GdkDeviceManager' to 'GdkSeat' for GDK 3.20 and higher.
+*
 *************************************************************************************************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -594,7 +599,7 @@
 #define GTK_SERVER_NONE 0
 
 /* Define GTK-server version - macro 'VERSION' also used by FFI on some platforms */
-#define GTK_SERVER_VERSION "2.4.5"
+#define GTK_SERVER_VERSION "2.4.6"
 
 /* Define backlog for tcp-connections */
 #define BACKLOG 4
@@ -874,6 +879,14 @@ char *str_address[MAX_ARGS];
 GtkObject *obj_address[MAX_ARGS];
 #elif GTK_SERVER_GTK3x
 GtkWidget *obj_address[MAX_ARGS];
+#define DEV_MANAGER do { \
+    GdkSeat *device_manager = gdk_display_get_default_seat(gdk_window_get_display(gtk_widget_get_window(widget))); \
+    gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_seat_get_pointer(device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
+} while(0)
+
+//GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
+//gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+
 #elif GTK_SERVER_XF
 FL_OBJECT *obj_address[MAX_ARGS];
 #elif GTK_SERVER_MOTIF
@@ -1642,8 +1655,7 @@ void gtk_server_callback(GtkWidget *widget, gpointer *data1, gpointer *data2, gp
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Oter data */
 Current_Object.object = widget;
@@ -1676,8 +1688,7 @@ GdkEventButton *event;
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 event = (GdkEventButton*)data1;
 Current_Object.button = event->button;
@@ -1694,8 +1705,7 @@ GdkEventButton *event;
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 
 event = (GdkEventButton*)data1;
@@ -1715,8 +1725,7 @@ GdkEventKey *event;
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 
 event = (GdkEventKey*)data1;
@@ -1735,8 +1744,7 @@ GdkEventKey *event;
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 
 event = (GdkEventKey*)data1;
@@ -1758,8 +1766,7 @@ GdkEventScroll *scroll;
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 
 /* Check if we have a scroll button */
@@ -1778,8 +1785,7 @@ GdkEventScroll *scroll;
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 
 /* Check if we have a scroll button */
@@ -1801,8 +1807,7 @@ void gtk_server_callback_extra2(GtkWidget *widget, gpointer *data1)
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1818,8 +1823,7 @@ void gtk_server_callback_extra3(GtkWidget *widget, gpointer *data1, gpointer *da
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1837,8 +1841,7 @@ void gtk_server_callback_extra4(GtkWidget *widget, gpointer *data1, gpointer *da
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1858,8 +1861,7 @@ void gtk_server_callback_extra5(GtkWidget *widget, gpointer *data1, gpointer *da
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1881,8 +1883,7 @@ void gtk_server_callback_extra6(GtkWidget *widget, gpointer *data1, gpointer *da
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1906,8 +1907,7 @@ void gtk_server_callback_extra7(GtkWidget *widget, gpointer *data1, gpointer *da
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1933,8 +1933,7 @@ void gtk_server_callback_extra8(GtkWidget *widget, gpointer *data1, gpointer *da
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1962,8 +1961,7 @@ gboolean gtk_server_callback_extra2_bool(GtkWidget *widget, gpointer *data1)
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -1980,8 +1978,7 @@ gboolean gtk_server_callback_extra3_bool(GtkWidget *widget, gpointer *data1, gpo
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -2000,8 +1997,7 @@ gboolean gtk_server_callback_extra4_bool(GtkWidget *widget, gpointer *data1, gpo
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -2022,8 +2018,7 @@ gboolean gtk_server_callback_extra5_bool(GtkWidget *widget, gpointer *data1, gpo
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -2046,8 +2041,7 @@ gboolean gtk_server_callback_extra6_bool(GtkWidget *widget, gpointer *data1, gpo
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -2072,8 +2066,7 @@ gboolean gtk_server_callback_extra7_bool(GtkWidget *widget, gpointer *data1, gpo
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;
@@ -2100,8 +2093,7 @@ gboolean gtk_server_callback_extra8_bool(GtkWidget *widget, gpointer *data1, gpo
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.mousey, NULL);
 #else
-GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+DEV_MANAGER;
 #endif
 /* Other data */
 Current_Object.object = widget;

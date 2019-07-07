@@ -1051,17 +1051,13 @@ va_end(args);
 
 void mystrcat(char** pointer, char *string)
 {
-char *new;
+    char *ptr;
 
-if (strlen(*pointer) + strlen(string) > MAX_LEN){
-    new = malloc(strlen(*pointer) + strlen(string) + MAX_LEN);
-    strncpy(new, *pointer, strlen(*pointer));
-    strncat(new, string, strlen(string));
+    ptr = calloc(strlen(*pointer) + strlen(string) + MAX_LEN + 1, sizeof(char));
+    strcpy(ptr, *pointer);
+    strcat(ptr, string);
     free(*pointer);
-    *pointer = new;
-}
-else strncat(*pointer, string, strlen(string));
-
+    *pointer = ptr;
 }
 
 /**************************************************************************************************/
@@ -1144,8 +1140,11 @@ void *search_and_open_lib(char *name)
 	    for(j = 0; j < gtkserver.libseq; j++) {
 
 		buf[len] = '\0';
-		snprintf(suffix, 5, ".%d", j);
+		if(snprintf(suffix, 5, ".%d", j) == 5) {
+                        suffix[4] = '\0';
+                }
 		strncat(buf, suffix, 5);
+                buf[MAX_LEN-1] = '\0';
 
 		#if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 		handle = dlopen(buf, RTLD_LAZY);
@@ -1445,7 +1444,7 @@ if (gtkserver.c_escaped & 2) {
 /* Add terminating newline if no '-nonl' parameter was provided */
 if(!(gtkserver.behave & 1024) ) {
     if (amount == 0 || retstr[amount-1] != '\n') {
-	retstr = strncat(retstr, "\n", 1);
+	retstr = strcat(retstr, "\n");
     }
 }
 
@@ -3741,7 +3740,7 @@ if (inputdata != NULL) {
 	    /* Get the separate arguments */
 	    else {
 		/* Forgot to put this here - thanks to Leonardo Cecchi for finding this bug */
-		strncpy(Call_Found->argamount, Trim_String(parse_data(list, item)), MAX_DIG);
+		strncpy(Call_Found->argamount, Trim_String(parse_data(list, item)), MAX_DIG-1);
 		/* Now start reading the arguments */
 		for (i = 0; i < atoi(parse_data(list, item)); i++){
 		    if(parse_data(list, i + 5) != NULL) {
@@ -3783,7 +3782,7 @@ if (inputdata != NULL) {
 	    else if (atoi(parse_data(list, item)) > MAX_ARGS)
 		Print_Error("%s%d%s", 3, "\nERROR: GTK definition cannot have more than ", MAX_ARGS, " arguments!");
 	    else {
-		strncpy(Call_Found->argamount, Trim_String(parse_data(list, item)), MAX_DIG);
+		strncpy(Call_Found->argamount, Trim_String(parse_data(list, item)), MAX_DIG-1);
 		/* Arguments to NULL, then get the separate arguments */
 		for (i = 0; i < MAX_ARGS; i++){
 		    Call_Found->args[i] = NULL;
@@ -5216,7 +5215,8 @@ if (inputdata != NULL) {
 				if(*buf == 36 && *(buf+1) > 96 && *(buf+1) < 123){
 				    M_Assocs = (MACRO_ASSOC*)malloc(sizeof(MACRO_ASSOC));
 				    /* Save the assoc'ed value */
-				    strncpy(M_Assocs->assoc, Macro_Found->var[*(buf+1) - 97], LONG_SIZE);
+                    memset(M_Assocs->assoc, 0, LONG_SIZE);
+				    strncpy(M_Assocs->assoc, Macro_Found->var[*(buf+1) - 97], LONG_SIZE-1);
 				    /* Determine key */
 				    M_Assocs->key = strdup(Macro_Found->var[*sym - 97]);
 				    /* Add to hash table */
@@ -5228,7 +5228,8 @@ if (inputdata != NULL) {
 				if(*buf == 36 && *(buf+1) > 96 && *(buf+1) < 123){
 				    M_Assocs = (MACRO_ASSOC*)malloc(sizeof(MACRO_ASSOC));
 				    /* Save the assoc'ed value */
-				    strncpy(M_Assocs->assoc, Macro_Found->var[*(buf+1) - 97], LONG_SIZE);
+                    memset(M_Assocs->assoc, 0, LONG_SIZE);
+				    strncpy(M_Assocs->assoc, Macro_Found->var[*(buf+1) - 97], LONG_SIZE-1);
 				    /* Determine key */
 				    M_Assocs->key = strdup(Macro_Found->args[*sym - 48]);
 				    /* Add to hash table */
@@ -5644,7 +5645,7 @@ else {
 	    /* We agree with ourselves to use msgtype = 1 */
 	    msgp.mtype = 1;
 	    do {
-		strncpy(msgp.mtext, ipc, MAX_LEN);
+		strncpy(msgp.mtext, ipc, MAX_LEN-1);
 		if (msgsnd(msgid, &msgp, strlen(msgp.mtext), 0) < 0) Print_Error("%s%s", 2, "\nCould not send to message queue: ", strerror(errno));
 		if (strlen(ipc) > MAX_LEN) ipc += MAX_LEN;
 		else ipc = NULL;
@@ -6103,7 +6104,7 @@ while (fgets (line, MAX_LEN, configfile) != NULL){
 		/* Get next term: amount of arguments */
 		cache = strtok(NULL, ",");
 		if (cache == NULL) Print_Error("%s%d", 2, "\nERROR: Missing argument amount in configfile at line: ", count_line);
-		else strncpy(Gtk_Api_Config->argamount, Trim_String(cache), MAX_DIG);
+		else strncpy(Gtk_Api_Config->argamount, Trim_String(cache), MAX_DIG-1);
 		if (atoi(Gtk_Api_Config->argamount) > MAX_ARGS) Print_Error("%s%d%s%d", 4, "\nERROR: GTK definition cannot have more than ", MAX_ARGS, " arguments!\n\nError in configfile at line: ", count_line);
 		/* Arguments to NULL, then get the separate arguments */
 		for (i = 0; i < MAX_ARGS; i++){
@@ -7414,7 +7415,7 @@ while (1){
     /* If the string buffer is filled, copy stringbuffer with a max of MAX_LEN */
     ipc = retstr;
     do {
-	strncpy(msgp.mtext, ipc, MAX_LEN);
+	strncpy(msgp.mtext, ipc, MAX_LEN-1);
 	if(msgsnd(msgid, &msgp, strlen(msgp.mtext), 0) < 0) Print_Error("%s%s", 2, "\nCould not send message to queue: ", strerror(errno));
 	if (strlen(ipc) > MAX_LEN) ipc += MAX_LEN;
 	else ipc = NULL;

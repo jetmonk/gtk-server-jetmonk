@@ -1,10 +1,14 @@
 #-----------------------------------------------------------------------------
 #
-# Listen to Internet Radio. Tested with mpg123 version 1.22.4.
+# Listen to Internet Radio. Tested with mpg123 version 1.22.4, 1.25.10
 #
 # (c) Peter van Eerten, May 2017 - GPL.
+#   Version 1.0: initial release
+#   Version 1.1: improvements in GUI, added EDIT button
 #
 #-----------------------------------------------------------------------------
+
+export LC_ALL=C
 
 # Disable file globbing
 set -f
@@ -216,35 +220,37 @@ function get_title_from_stream()
 #------------------------ Main starts here
 
 # Define GUI - mainwindow
-define WIN gtk "m_window \"'GTK-server Internet Radio'\" 400 320"
+define WIN gtk "m_window \"'GTK-server Internet Radio'\" 420 320"
 # Attach frame #1
-define FRAME1 gtk "m_frame 220 260"
+define FRAME1 gtk "m_frame 240 260"
 gtk "m_attach $WIN $FRAME1 5 5"
 gtk "m_frame_text $FRAME1 \"' Stations '\""
 # Define list
-define LST gtk "m_list 200 190"
+define LST gtk "m_list 220 185"
 gtk "m_attach $WIN $LST 15 25"
 # Buttons
-define ADD gtk "m_stock gtk-add 90 30"
-gtk "m_attach $WIN $ADD 15 225"
-define DEL gtk "m_stock gtk-delete 90 30"
-gtk "m_attach $WIN $DEL 125 225"
+define ADD gtk "m_stock gtk-add 65 30"
+gtk "m_attach $WIN $ADD 15 220"
+define EDIT gtk "m_stock gtk-edit 65 30"
+gtk "m_attach $WIN $EDIT 85 220"
+define DEL gtk "m_stock gtk-delete 80 30"
+gtk "m_attach $WIN $DEL 155 220"
 # Attach frame #2
-define FRAME2 gtk "m_frame 165 60"
-gtk "m_attach $WIN $FRAME2 230 5"
-gtk "m_frame_text $FRAME2 \"' Control '\""
+define FRAME2 gtk "m_frame 165 185"
+gtk "m_attach $WIN $FRAME2 250 80"
+gtk "m_frame_text $FRAME2 \"' Radio '\""
 define PLAY gtk "m_stock gtk-media-play 50 30"
-gtk "m_attach $WIN $PLAY 240 25"
+gtk "m_attach $WIN $PLAY 260 220"
 define PAUSE gtk "m_stock gtk-media-pause 50 30"
-gtk "m_attach $WIN $PAUSE 310 25"
+gtk "m_attach $WIN $PAUSE 330 220"
 # Attach frame #3
-define FRAME3 gtk "m_frame 165 60"
-gtk "m_attach $WIN $FRAME3 230 205"
+define FRAME3 gtk "m_frame 165 70"
+gtk "m_attach $WIN $FRAME3 250 5"
 gtk "m_frame_text $FRAME3 \"' Info '\""
 define ABOUT gtk "m_stock gtk-about 50 30"
-gtk "m_attach $WIN $ABOUT 240 225"
+gtk "m_attach $WIN $ABOUT 260 30"
 define EXIT gtk "m_stock gtk-quit 50 30"
-gtk "m_attach $WIN $EXIT 320 225"
+gtk "m_attach $WIN $EXIT 340 30"
 
 # Config panel
 define CONFIG gtk "m_window \"'Add Station'\" 300 180"
@@ -254,21 +260,21 @@ define FRAME4 gtk "m_frame 290 60"
 gtk "m_attach $CONFIG $FRAME4 5 5"
 gtk "m_frame_text $FRAME4 \"' Name '\""
 # Entry for name
-define INP gtk "m_entry \"''\" 280 50"
-gtk "m_attach $CONFIG $INP 10 15"
+define INP gtk "m_entry \"''\" 280 30"
+gtk "m_attach $CONFIG $INP 10 25"
 # Attach frame #5
 define FRAME5 gtk "m_frame 290 60"
 gtk "m_attach $CONFIG $FRAME5 5 75"
 gtk "m_frame_text $FRAME5 \"' URL '\""
 # Entry for url
-define URL gtk "m_entry \"''\" 280 50"
-gtk "m_attach $CONFIG $URL 10 85"
+define URL gtk "m_entry \"''\" 280 30"
+gtk "m_attach $CONFIG $URL 10 95"
 # Ok button
 define OK gtk "m_stock gtk-ok 50 30"
 gtk "m_attach $CONFIG $OK 5 145"
 # Cancel button
 define CANCEL gtk "m_stock gtk-cancel 50 30"
-gtk "m_attach $CONFIG $CANCEL 100 145"
+gtk "m_attach $CONFIG $CANCEL 200 145"
 
 # About dialogue
 define VER gtk "gtk_server_version"
@@ -278,18 +284,15 @@ define ABD gtk "m_dialog \"' About this program '\" \"'In memory of Qradio. Runn
 define ERR gtk "m_dialog \"' ERROR '\" \"'Provided link cannot be opened! Skipping it...'\" 300 100"
 
 # Attach frame #6
-define FRAME6 gtk "m_frame 390 45"
+define FRAME6 gtk "m_frame 410 45"
 gtk "m_attach $WIN $FRAME6 5 270"
 gtk "m_frame_text $FRAME6 \"' Stream Title '\""
 define LABEL gtk "m_label \"''\" 370 40 0.5 0.5 50"
 gtk "m_attach $WIN $LABEL 10 280"
 
 # Attach frame #7
-define FRAME7 gtk "m_frame 165 130"
-gtk "m_attach $WIN $FRAME7 230 70"
 define CANVAS gtk "m_canvas 155 100"
-gtk "m_attach $WIN $CANVAS 235 90"
-gtk "m_out \"'Back to Qradio'\" #0000FF #CACACA 10 80"
+gtk "m_attach $WIN $CANVAS 255 105"
 gtk "m_image \"'$MYDIR/radio.png'\""
 
 read_config_from_file
@@ -312,6 +315,18 @@ do
         $ERR)
             gtk "m_hide $ERR";;
         $ADD)
+            gtk "m_entry_text $INP \"''\""
+            gtk "m_entry_text $URL \"''\""
+            ORG=
+            gtk "m_show $CONFIG";;
+        $EDIT)
+            define SEL gtk "m_list_get $LST"
+            if [[ -n ${SEL} ]]
+            then
+                gtk "m_entry_text ${INP} \"'${name[$SEL]}'\""
+                gtk "m_entry_text ${URL} \"'${link[$SEL]}'\""
+            fi
+            ORG="$SEL"
             gtk "m_show $CONFIG";;
         $DEL)
             define SEL gtk "m_list_get $LST"
@@ -322,6 +337,12 @@ do
             read_config_from_file
             add_stations_to_list;;
         $OK)
+            if [[ -n ${ORG} ]]
+            then
+                name[$ORG]=""
+                link[$ORG]=""
+                ORG=
+            fi
             define name[$COUNTER] gtk "m_entry_grab $INP"
             define link[$COUNTER] gtk "m_entry_grab $URL"
             ((COUNTER+=1))

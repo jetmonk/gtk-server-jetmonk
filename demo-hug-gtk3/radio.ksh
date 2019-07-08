@@ -270,11 +270,11 @@ gtk "m_frame_text $FRAME5 \"' URL '\""
 define URL gtk "m_entry \"''\" 280 30"
 gtk "m_attach $CONFIG $URL 10 95"
 # Ok button
-define OK gtk "m_stock gtk-ok 50 30"
+define OK gtk "m_stock gtk-ok 80 30"
 gtk "m_attach $CONFIG $OK 5 145"
 # Cancel button
-define CANCEL gtk "m_stock gtk-cancel 50 30"
-gtk "m_attach $CONFIG $CANCEL 200 145"
+define CANCEL gtk "m_stock gtk-cancel 80 30"
+gtk "m_attach $CONFIG $CANCEL 210 145"
 
 # About dialogue
 define VER gtk "gtk_server_version"
@@ -287,7 +287,7 @@ define ERR gtk "m_dialog \"' ERROR '\" \"'Provided link cannot be opened! Skippi
 define FRAME6 gtk "m_frame 410 45"
 gtk "m_attach $WIN $FRAME6 5 270"
 gtk "m_frame_text $FRAME6 \"' Stream Title '\""
-define LABEL gtk "m_label \"''\" 370 40 0.5 0.5 50"
+define LABEL gtk "m_label \"''\" 390 40 0.5 0.5 50"
 gtk "m_attach $WIN $LABEL 10 280"
 
 # Attach frame #7

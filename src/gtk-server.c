@@ -879,13 +879,17 @@ char *str_address[MAX_ARGS];
 GtkObject *obj_address[MAX_ARGS];
 #elif GTK_SERVER_GTK3x
 GtkWidget *obj_address[MAX_ARGS];
+#if GTK_MINOR_VERSION<20
+#define DEV_MANAGER do { \
+    GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget))); \
+    gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
+} while(0)
+#else
 #define DEV_MANAGER do { \
     GdkSeat *device_manager = gdk_display_get_default_seat(gdk_window_get_display(gtk_widget_get_window(widget))); \
     gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_seat_get_pointer(device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
 } while(0)
-
-//GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget)));
-//gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL);
+#endif
 
 #elif GTK_SERVER_XF
 FL_OBJECT *obj_address[MAX_ARGS];

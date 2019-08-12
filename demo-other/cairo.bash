@@ -21,7 +21,7 @@ function define() { $2 "$3"; eval $1="\"$CAIRO\""; }
 gtk-server -fifo=$PI -debug &
 while [ ! -p $PI ]; do continue; done
 
-# Open MikMod library
+# Open Cairo library
 define LIB cairo "gtk_server_require libcairo.so"
 if [[ ${LIB} != "ok" ]]
 then

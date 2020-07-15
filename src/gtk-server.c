@@ -483,6 +483,7 @@
 * ------------------------
 *               . Fixed compile warning with GCC 7 and GCC 8.
 *               . Changed 'GdkDeviceManager' to 'GdkSeat' for GDK 3.20 and higher.
+*               . Fixed issue with connecting and disconnecting signals.
 *
 *************************************************************************************************************************************************/
 

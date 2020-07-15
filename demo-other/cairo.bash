@@ -3,7 +3,7 @@
 # With the GTK-server it is possible to open any library from a shellscript,
 # without using configfile, as is shown below.
 #
-# December 2016, PvE - tested with GTK-server 2.4.6 on Mageia Linux 7.
+# August 2019, PvE - tested with GTK-server 2.4.6 on Mageia Linux 7.
 #
 #---------------------------------------------------------------------
 

@@ -3931,6 +3931,8 @@ if (inputdata != NULL) {
 	    List_Sigs->next = NULL;
 	}
 	else {
+            List_Sigs = Start_List_Sigs;
+            while (List_Sigs->next) { List_Sigs = List_Sigs->next; }
 	    List_Sigs->next = (ASSOC*)malloc(sizeof(ASSOC));
 	    List_Sigs = List_Sigs->next;
 	    List_Sigs->next = NULL;

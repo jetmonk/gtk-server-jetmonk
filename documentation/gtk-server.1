@@ -1,7 +1,7 @@
 .TH gtk\-server 1
 .SH "NAME"
 gtk\-server \- GUI access for shellscripts and interpreted languages.
-.SH "SYNOPSIS" 
+.SH "SYNOPSIS"
 .B gtk\-server
 .I <\-stdin> |
 .I <\-tcp>=host:port[:max] |
@@ -26,8 +26,8 @@ gtk\-server \- GUI access for shellscripts and interpreted languages.
 .SH "DESCRIPTION"
 .P
 The GTK\-server is a binary which can be started from a (shell\-)script or
-an interpreted language. 
-It will read the configuration file 'gtk\-server.cfg' after which a 
+an interpreted language.
+It will read the configuration file 'gtk\-server.cfg' after which a
 client script can execute GTK functions. These GTK functions are sent in
 plain text to the gtk\-server, using a 2\-way pipe, a named pipe or a TCP or UDP
 connection.
@@ -41,13 +41,13 @@ arguments:
 .TP
 .B -stdin
 Start the GTK\-server with 2\-way pipes. The client script language must start
-a 2\-way pipe to the GTK\-server to enable communication. (In KSH and AWK for example, the 
+a 2\-way pipe to the GTK\-server to enable communication. (In KSH and AWK for example, the
 symbol '|&' is used for this.)
 .TP
 .B -tcp=host:port[:max]
 Start the GTK\-server as TCP server. The client script language must
-connect to this host and port. Commonly 'localhost' and a portnumber higher than 
-1024 are used. The 'max' part determines the maximum amount of client scripts 
+connect to this host and port. Commonly 'localhost' and a portnumber higher than
+1024 are used. The 'max' part determines the maximum amount of client scripts
 which can connect. If 'max' is omitted only 1 client script may connect.
 .TP
 .B -sock=host:port
@@ -55,7 +55,7 @@ Start the GTK\-server as TCP client. The client script language acts like a serv
 the commands to the GTK-server.
 .TP
 .B -udp=host:port
-Start the GTK-server in UDP mode. The client script must connect to <host> and 
+Start the GTK-server in UDP mode. The client script must connect to <host> and
 <port> using the UDP protocol.
 .TP
 .B -fifo=<file>
@@ -91,7 +91,7 @@ the Unix command 'ipcrm'.
 The GTK\-server accepts the following optional parameters:
 .TP
 .B -log=<filename>
-Start the GTK\-server in debug mode. A file with the name 'filename' will be created. This logfile 
+Start the GTK\-server in debug mode. A file with the name 'filename' will be created. This logfile
 contains the strings which were received by the GTK\-server, and the responses
 of the GTK\-server to those strings.
 .TP
@@ -260,7 +260,7 @@ been compiled for the XForms backend.
 .TP
 .B gtk_server_enable_c_string_escaping
 This command puts the GTK-server into C escaping mode. Returned strings are surrounded with
-doublequotes, and by default the special characters BELL, CR, newline, TAB, doublequote and backslash 
+doublequotes, and by default the special characters BELL, CR, newline, TAB, doublequote and backslash
 will be preceded by the escape sign '\\'. This allows debugging of strings without the client
 program actually interpreting the special characters. To change the default set of characters,
 use 'gtk_server_set_c_string_escaping' (see below).
@@ -271,9 +271,39 @@ Switches off the C escaping mode (default).
 .B gtk_server_set_c_string_escaping <argument>
 Defines the set of characters which should be escaped before they are returned by the GTK-server.
 .TP
+.B gtk_server_enable_print_line_count
+This command enables a mode in which the number of lines contained in the returned string will be
+printed at the first line. This is useful for getting multiline values when the server is started
+with 2\-way pipes (\-stdin option). Example of client\-server interaction:
+
+.br
+> gtk_text_buffer_get_text <widgetID> <startIter> <endIter> 0
+.br
+line1
+.br
+line2
+.br
+> gtk_server_enable_printing_line_count
+.br
+1
+.br
+ok
+.br
+> gtk_text_buffer_get_text <widgetID> <startIter> <endIter> 0
+.br
+2
+.br
+line1
+.br
+line2
+
+.TP
+.B gtk_server_disable_print_line_count
+Switches off the line count printing mode (default).
+.TP
 .B gtk_server_mouse <argument>
 With this call the status of the mousepointer can be retrieved. When <argument> equals to 0,
-the x-coordinate of the mouse on the widget is returned. When <argument> equals to 1, the 
+the x-coordinate of the mouse on the widget is returned. When <argument> equals to 1, the
 y-coordinate on the widget is returned. When <argument> equals to 2, the status of
 the mousebutton is returned, which is a value of 1 (left button), 2 (middle button), 3 (right button),
 4 or 5 (other buttons). It is required to connect the 'button-press-event' signal to the widget.
@@ -475,19 +505,19 @@ the latest demoscripts at http://www.gtk-server.org/.
 .SH "LICENSE"
 GPL License.
 
-This program is free software; you can redistribute it and/or modify 
-it under the terms of the GNU General Public License as published 
-by the Free Software Foundation; either version 2 of the License, 
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published
+by the Free Software Foundation; either version 2 of the License,
 or (at your option) any later version.
 
-This program is distributed in the hope that it will be useful, 
-but WITHOUT ANY WARRANTY; without even the implied warranty of 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License 
-along with this program; if not, write to the Free Software 
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 MA 02111-1307 USA.
 .SH "BUGS"
 Please report bugs to: bugs@gtk-server.org

@@ -12,7 +12,7 @@ Section: User Commands  (1)<BR><A HREF="#index">Index</A>
 
 gtk-server - GUI access for shellscripts and interpreted languages.
 <A NAME="lbAC">&nbsp;</A>
-<H2>SYNOPSIS </H2>
+<H2>SYNOPSIS</H2>
 
 <B>gtk-server</B>
 
@@ -62,8 +62,8 @@ gtk-server - GUI access for shellscripts and interpreted languages.
 <P>
 
 The GTK-server is a binary which can be started from a (shell-)script or
-an interpreted language. 
-It will read the configuration file 'gtk-server.cfg' after which a 
+an interpreted language.
+It will read the configuration file 'gtk-server.cfg' after which a
 client script can execute GTK functions. These GTK functions are sent in
 plain text to the gtk-server, using a 2-way pipe, a named pipe or a TCP or UDP
 connection.
@@ -83,14 +83,14 @@ arguments:
 
 <DD>
 Start the GTK-server with 2-way pipes. The client script language must start
-a 2-way pipe to the GTK-server to enable communication. (In KSH and AWK for example, the 
+a 2-way pipe to the GTK-server to enable communication. (In KSH and AWK for example, the
 symbol '|&amp;' is used for this.)
 <DT><B>-tcp=host:port[:max]</B>
 
 <DD>
 Start the GTK-server as TCP server. The client script language must
-connect to this host and port. Commonly 'localhost' and a portnumber higher than 
-1024 are used. The 'max' part determines the maximum amount of client scripts 
+connect to this host and port. Commonly 'localhost' and a portnumber higher than
+1024 are used. The 'max' part determines the maximum amount of client scripts
 which can connect. If 'max' is omitted only 1 client script may connect.
 <DT><B>-sock=host:port</B>
 
@@ -100,7 +100,7 @@ the commands to the GTK-server.
 <DT><B>-udp=host:port</B>
 
 <DD>
-Start the GTK-server in UDP mode. The client script must connect to &lt;host&gt; and 
+Start the GTK-server in UDP mode. The client script must connect to &lt;host&gt; and
 &lt;port&gt; using the UDP protocol.
 <DT><B>-fifo=&lt;file&gt;</B>
 
@@ -150,7 +150,7 @@ The GTK-server accepts the following optional parameters:
 <DT><B>-log=&lt;filename&gt;</B>
 
 <DD>
-Start the GTK-server in debug mode. A file with the name 'filename' will be created. This logfile 
+Start the GTK-server in debug mode. A file with the name 'filename' will be created. This logfile
 contains the strings which were received by the GTK-server, and the responses
 of the GTK-server to those strings.
 <DT><B>-signal=&lt;number&gt;</B>
@@ -363,7 +363,7 @@ been compiled for the XForms backend.
 
 <DD>
 This command puts the GTK-server into C escaping mode. Returned strings are surrounded with
-doublequotes, and by default the special characters BELL, CR, newline, TAB, doublequote and backslash 
+doublequotes, and by default the special characters BELL, CR, newline, TAB, doublequote and backslash
 will be preceded by the escape sign '\'. This allows debugging of strings without the client
 program actually interpreting the special characters. To change the default set of characters,
 use 'gtk_server_set_c_string_escaping' (see below).
@@ -375,11 +375,53 @@ Switches off the C escaping mode (default).
 
 <DD>
 Defines the set of characters which should be escaped before they are returned by the GTK-server.
+<DT><B>gtk_server_enable_print_line_count</B>
+
+<DD>
+This command enables a mode in which the number of lines contained in the returned string will be
+printed at the first line. This is useful for getting multiline values when the server is started
+with 2-way pipes (-stdin option). Example of client-server interaction:
+<P>
+<BR>
+
+&gt; gtk_text_buffer_get_text &lt;widgetID&gt; &lt;startIter&gt; &lt;endIter&gt; 0
+<BR>
+
+line1
+<BR>
+
+line2
+<BR>
+
+&gt; gtk_server_enable_printing_line_count
+<BR>
+
+1
+<BR>
+
+ok
+<BR>
+
+&gt; gtk_text_buffer_get_text &lt;widgetID&gt; &lt;startIter&gt; &lt;endIter&gt; 0
+<BR>
+
+2
+<BR>
+
+line1
+<BR>
+
+line2
+<P>
+<DT><B>gtk_server_disable_print_line_count</B>
+
+<DD>
+Switches off the line count printing mode (default).
 <DT><B>gtk_server_mouse &lt;argument&gt;</B>
 
 <DD>
 With this call the status of the mousepointer can be retrieved. When &lt;argument&gt; equals to 0,
-the x-coordinate of the mouse on the widget is returned. When &lt;argument&gt; equals to 1, the 
+the x-coordinate of the mouse on the widget is returned. When &lt;argument&gt; equals to 1, the
 y-coordinate on the widget is returned. When &lt;argument&gt; equals to 2, the status of
 the mousebutton is returned, which is a value of 1 (left button), 2 (middle button), 3 (right button),
 4 or 5 (other buttons). It is required to connect the 'button-press-event' signal to the widget.
@@ -636,19 +678,19 @@ the latest demoscripts at <A HREF="http://www.gtk-server.org/.">http://www.gtk-s
 
 GPL License.
 <P>
-This program is free software; you can redistribute it and/or modify 
-it under the terms of the GNU General Public License as published 
-by the Free Software Foundation; either version 2 of the License, 
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published
+by the Free Software Foundation; either version 2 of the License,
 or (at your option) any later version.
 <P>
-This program is distributed in the hope that it will be useful, 
-but WITHOUT ANY WARRANTY; without even the implied warranty of 
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the 
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 <P>
-You should have received a copy of the GNU General Public License 
-along with this program; if not, write to the Free Software 
-Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 MA 02111-1307 USA.
 <A NAME="lbAM">&nbsp;</A>
 <H2>BUGS</H2>
@@ -671,7 +713,7 @@ the sourcepackage for credits.
 <A NAME="index">&nbsp;</A><H2>Index</H2>
 <DL>
 <DT><A HREF="#lbAB">NAME</A><DD>
-<DT><A HREF="#lbAC">SYNOPSIS </A><DD>
+<DT><A HREF="#lbAC">SYNOPSIS</A><DD>
 <DT><A HREF="#lbAD">DESCRIPTION</A><DD>
 <DT><A HREF="#lbAE">ARGUMENTS</A><DD>
 <DT><A HREF="#lbAF">OPTIONS</A><DD>
@@ -689,6 +731,6 @@ the sourcepackage for credits.
 This document was created by
 <A HREF="/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 13:40:28 GMT, June 30, 2019
+Time: 14:39:32 GMT, August 20, 2021
 </BODY>
 </HTML>

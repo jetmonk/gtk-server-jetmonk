@@ -117,7 +117,7 @@
 *		. Corrected format of logging with TCP and UDP
 *		. The GTK-server now compiles with -pedantic flag and is ISO-C compatible (Linux)
 *		. Added scripts to create sourcepackage, Slackware installpackage and SRC rpm
-*   
+*
 * CHANGES GTK-SERVER 1.3
 * ----------------------
 * - BUILD 1:	. Major changes in passing strings to GTK-server; concept by Norman Deppendbroek, parser
@@ -252,7 +252,7 @@
 * - BUILD 5:	. Removed all Glade stuf, now Glade needs to be called just as GTK
 *		. Code cleaning
 * - BUILD 6:	. Fixed bug in BOOL returnvalue when compiled with C/Invoke
-*		. Fixed bug when compiling with FFCALL, introducing DOUBLE as valid returnvalue 
+*		. Fixed bug when compiling with FFCALL, introducing DOUBLE as valid returnvalue
 *
 * CHANGES GTK-SERVER 2.2
 * ----------------------
@@ -804,6 +804,7 @@ struct behaviour {
     int count_fork;		/* Keeps track of forking when in TCP mode */
     int c_escaped;		/* Define if returned strings will have escaped special characters 0=off, 1=on, 2=string */
     unsigned char escapes[16];	/* Keep chars to escape, maximum 16 */
+    int print_line_count;		/* Print line count before returnstring */
     char *fifo;			/* Keep name of FIFO file (Linux) */
     char *tcp;			/* Keep name of TCP data when in TCP mode */
     char *udp;			/* Keep name of UDP data when in UDP mode */
@@ -1036,7 +1037,7 @@ return data;
 
 /* Check if a charpointer really contains a long number */
 
-int is_value (char *var) 
+int is_value (char *var)
 {
 int i;
 
@@ -1059,7 +1060,7 @@ va_list args;
 
 va_start(args, fmt);
 
-vsprintf(result, fmt, args); 
+vsprintf(result, fmt, args);
 
 va_end(args);
 }
@@ -1144,7 +1145,7 @@ void *search_and_open_lib(char *name)
         /* Opening fails, now start search */
 	if(handle == NULL){
 
-	   /* Unlikely but you never know */    
+	   /* Unlikely but you never know */
 	    len = strlen(name);
 	    if(len > MAX_LEN-5) {
 		return(NULL);
@@ -1316,10 +1317,10 @@ char data[MAX_LEN] = { 0 };
         vsnprintf(data, MAX_LEN, fmt, args);
 	fprintf(stderr, "%s\n\n", data);
     #endif
-    
+
     /* Send signal to parent process */
     if (gtkserver.behave & 8) kill(gtkserver.ppid, gtkserver.exit_sig);
-    
+
 #elif GTK_SERVER_WIN32
     /* Read arguments incoming in functionheader */
     va_start(args, no);
@@ -1343,9 +1344,10 @@ static long memsize = MAX_LEN;
 va_list args;
 va_list backup;
 
-/* These are used for the C string escaping */
+/* These are used for the C string escaping and printing line count */
 unsigned int i = 0, j = 0, l = 0, q, found, amount;
 char hex_buf[3];
+char int_str[12];
 char *result;
 
 /* Here we go */
@@ -1385,17 +1387,17 @@ if (gtkserver.c_escaped & 2) {
     /* Walk through the escape symbols and check how many there are */
     for(i = 0; retstr[i]; ++i){
 	for(q = 0; gtkserver.escapes[q]; q++){
-	    if(gtkserver.escapes[q] == retstr[i]) l += 2;
+	    if(gtkserver.escapes[q] == retstr[i]) l += 1;
 	    else{
-		if((unsigned char)retstr[i] < 32 || (unsigned char)retstr[i] > 254) l += 4; /* Special characters must be returned also */
+		if((unsigned char)retstr[i] < 32 || (unsigned char)retstr[i] > 254) l += 3; /* Special characters must be returned also */
 		else ++l;
 	    }
 	}
     }
 
-    /* Allocate 1 byte more for newline */
-    result = (char*)malloc(strlen((char*)retstr)*sizeof(char)+(l + 3 + 2)*sizeof(char));
-    if(!result) Print_Error ("%s", 1, "\nERROR: Cannot allocate memory for escaped string!");
+    /* Allocate 2 bytes more for quotes and 1 for NULL byte */
+    result = (char*)malloc((strlen((char*)retstr) + l + 3) * sizeof(char));
+    if(result == NULL) Print_Error ("%s", 1, "\nERROR: Cannot allocate memory for escaped string!");
 
     result[0] = '"';
 
@@ -1440,17 +1442,14 @@ if (gtkserver.c_escaped & 2) {
     amount = strlen(result);
 
     /* Static return buffer big enough?*/
-    if (amount > memsize){
-	retstr = (char*)realloc(retstr, (amount+2)*sizeof(char));
+    if (amount + 2 > memsize){
+	retstr = (char*)realloc(retstr, (amount + 2) * sizeof(char));
 	if (retstr == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to allocate returnvalue: ", strerror(errno));
-	memsize = amount;
+	memsize = amount + 2;
     }
 
-    /* Clearup static return buffer */
-    memset(retstr, 0, amount);
-
     /* Copy result in static buffer */
-    memcpy(retstr, result, amount);
+    memcpy(retstr, result, (amount + 1) * sizeof(char));
 
     /* Free temporary buffer */
     free(result);
@@ -1459,11 +1458,32 @@ if (gtkserver.c_escaped & 2) {
     gtkserver.c_escaped &= 253;
 }
 
+/* Prepend line count to retstr */
+if(gtkserver.print_line_count) {
+    l = 1;
+    for(i = 0; retstr[i]; i++) {
+        if(retstr[i] == '\n') l++;
+    }
+    l = sprintf(int_str, "%d", l) + 1; // 1 byte for line feed
+
+    /* 2 bytes for terminating line feed and NULL byte */
+    if(amount + l + 2 > memsize) {
+        retstr = (char*)realloc(retstr, (amount + l + 2) * sizeof(char));
+    	if(retstr == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to allocate returnvalue: ", strerror(errno));
+        memsize = amount + l + 2;
+    }
+
+    /* Prepending int_str to retstr */
+    memmove(retstr + l, retstr, amount + 1);
+    memcpy(retstr, int_str, l - 1);
+    retstr[l - 1] = '\n';
+
+    amount += l;
+}
+
 /* Add terminating newline if no '-nonl' parameter was provided */
 if(!(gtkserver.behave & 1024) ) {
-    if (amount == 0 || retstr[amount-1] != '\n') {
 	retstr = strcat(retstr, "\n");
-    }
 }
 
 return retstr;
@@ -1482,7 +1502,7 @@ void check_cert(SSL *ssl, char *host, FILE *logfile)
 {
 X509 *peer;
 char peer_CN[256];
-    
+
 if(SSL_get_verify_result(ssl) != X509_V_OK) Print_Error("%s", 1, "\nSSL: Certificate of remote server doesn't verify!");
 
 /* Check the common name */
@@ -2969,7 +2989,7 @@ while (base != NULL){
     free(base->arg);
     tmp = base;
     base = base->next;
-    free(tmp);	
+    free(tmp);
 }
 }
 
@@ -3011,7 +3031,7 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
 		c = '\t';
 	    else if ( c == 'r' )
 		c = '\r';
-				
+
 	    data[quote_dst_idx] = c;
 	    ++quote_dst_idx;
 
@@ -3037,7 +3057,7 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
 		c = '\t';
 	    else if ( c == 'r' )
 		c = '\r';
-				
+
 	    data[quote_dst_idx] = c;
 	    ++quote_dst_idx;
 
@@ -3077,7 +3097,7 @@ return (args);
 
 This code is based on Bob Trower's C implementation at http://base64.sourceforge.net/.
 Adjusted heavily to fill my needs.
-  
+
 LICENSE:        Copyright (c) 2001 Bob Trower, Trantor Standard Systems Inc.
 
                 Permission is hereby granted, free of charge, to any person
@@ -3095,7 +3115,7 @@ LICENSE:        Copyright (c) 2001 Bob Trower, Trantor Standard Systems Inc.
 */
 
 void decodeblock( unsigned char in[4], unsigned char out[3] )
-{   
+{
     out[ 0 ] = (unsigned char ) (in[0] << 2 | in[1] >> 4);
     out[ 1 ] = (unsigned char ) (in[1] << 4 | in[2] >> 2);
     out[ 2 ] = (unsigned char ) (((in[2] << 6) & 0xc0) | in[3]);
@@ -3589,12 +3609,12 @@ if (inputdata != NULL) {
     }
     /* Code for gtk_server_string_from_pointer comes from Jop Brown */
     else if (!strcmp("gtk_server_string_from_pointer", gtk_api_call)){
-	
+
 	/* Yes, find the first argument */
 	if ((arg = parse_data(list, ++item)) == NULL){
 	    Print_Error("%s", 1, "\nERROR: Cannot find pointer in first arg!");
 	}
-        
+
 	retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, (char*)atol(arg), gtkserver.post);
     }
     #ifdef GTK_SERVER_MOTIF
@@ -3668,10 +3688,20 @@ if (inputdata != NULL) {
 	gtkserver.escapes[i] = '\0';
 	retstr = Print_Result("%s%sC string escaping set to %s%s", 4, gtkserver.pre, gtkserver.handle, gtkserver.escapes, gtkserver.post);
     }
+    else if (!strcmp("GTK_SERVER_ENABLE_PRINT_LINE_COUNT", gtk_api_call) || !strcmp("gtk_server_enable_print_line_count", gtk_api_call)){
+	gtkserver.print_line_count = 1;
+	/* Return OK */
+	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+    }
+    else if (!strcmp("GTK_SERVER_DISABLE_PRINT_LINE_COUNT", gtk_api_call) || !strcmp("gtk_server_disable_print_line_count", gtk_api_call)){
+	gtkserver.print_line_count = 0;
+	/* Return OK */
+	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+    }
     /* Check if we have a GTK echo function (for debugging & keepalives) */
     else if (!strcmp("gtk_server_echo", gtk_api_call)) {
 	while(*inputdata!='\0' && *inputdata != 32) inputdata++;
-	if(*inputdata == 32) inputdata++; 
+	if(*inputdata == 32) inputdata++;
 	retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, inputdata, gtkserver.post);
     }
     /* Check if the GTK-server must be exited */
@@ -5378,7 +5408,7 @@ char line[MAX_LEN];
 int lib_counter = 1;
 /* Temp holder for tokenization of configfile */
 char *cache;
-/* Define environment variable holder */ 
+/* Define environment variable holder */
 char *libvar;
 /* Count current line number of configfile */
 long count_line;
@@ -5490,8 +5520,8 @@ BOOL bOsVersionInfoEx;
 /* Needed for PIPES */
 HANDLE hPipe1;
 HANDLE hPipe2;
-CHAR chRequest[MAX_LEN]; 
-DWORD cbBytesRead, cbWritten; 
+CHAR chRequest[MAX_LEN];
+DWORD cbBytesRead, cbWritten;
 BOOL fSuccess;
 char *dialog_msg = (char*)malloc(MAX_LEN*sizeof(char));
 #endif
@@ -5587,9 +5617,9 @@ if(!strncmp(argv[1], "this", 4) || !strncmp(argv[1], "-this", 5)){
 else {
     /* Now walk through arguments */
     for (i = 1; i<argc; i++){
-	if (!strcmp(argv[i], "showconf") || !strcmp(argv[i], "-showconf")) gtkserver.behave |= 1;	/* Check if configuration should be printed to STDOUT */ 
-	else if (!strcmp(argv[i], "nocreate") || !strcmp(argv[i], "-nocreate")) gtkserver.behave |= 2;	/* Check if FIFO should be created */ 
-	else if (!strcmp(argv[i], "detach") || !strcmp(argv[i], "-detach")) gtkserver.behave |= 4;	/* Check if GTK-server should try to spawn itself */ 
+	if (!strcmp(argv[i], "showconf") || !strcmp(argv[i], "-showconf")) gtkserver.behave |= 1;	/* Check if configuration should be printed to STDOUT */
+	else if (!strcmp(argv[i], "nocreate") || !strcmp(argv[i], "-nocreate")) gtkserver.behave |= 2;	/* Check if FIFO should be created */
+	else if (!strcmp(argv[i], "detach") || !strcmp(argv[i], "-detach")) gtkserver.behave |= 4;	/* Check if GTK-server should try to spawn itself */
 	else if (!strncmp(argv[i], "cfg=", 4) || !strncmp(argv[i], "-cfg=", 5)){
 	    strtok(argv[i], "=");						/* Check if configfile is entered */
 	    user_cfgfile = strtok(NULL, "=");
@@ -5649,7 +5679,7 @@ else {
 		if (strlen(ipc) > MAX_LEN) ipc += MAX_LEN;
 		else ipc = NULL;
 	    }
-	    while (ipc != NULL); 
+	    while (ipc != NULL);
 
 	    /* SYNC: wait for other PID to write data */
 	    do {
@@ -5667,10 +5697,10 @@ else {
 		numbytes = msgrcv(msgid, &msgp, MAX_LEN, 1, MSG_NOERROR);
 
 		if(numbytes < 0) Print_Error("%s%s", 2, "\nError in reading from IPC(msg): ", strerror(errno));
-	
+
 		/* Realloc preserves contents, add one for \0 which is added later */
 		if (len + numbytes > MAX_LEN*page) {page++; in = realloc(in, MAX_LEN*page + 1);}
-		
+
 		if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from IPC(msg): ", strerror(errno));
 
 		memcpy(in + len, msgp.mtext, numbytes);
@@ -5680,7 +5710,7 @@ else {
 
 	    /* Make sure we have a NULL terminated character array */
 	    if (len >= 0) in[len] = '\0';
-    
+
 	    /* Print result to STDOUT */
 	    if(gtkserver.behave & 1024)
 		{ fprintf(stdout, "%s", in); }
@@ -6022,7 +6052,7 @@ if (user_cfgfile == NULL || configfile == NULL) {
 	/* Find a configfile in the default Linux directory's */
 	if (configfile == NULL) {
 	    /* Homedir */
-	    libvar = getenv("HOME"); 
+	    libvar = getenv("HOME");
 	    if (libvar != NULL){
 		filename = (char *)malloc(strlen(libvar) + 17);		/* Fix by Sebastiaan van Erk */
 		strcpy(filename, libvar);
@@ -6052,6 +6082,9 @@ gtkserver.escapes[3] = 13;   /* CARRIAGE */
 gtkserver.escapes[4] = 92;   /* BACKSLASH */
 gtkserver.escapes[5] = 34;   /* DOUBLEQUOTE */
 gtkserver.escapes[6] = 0;    /* Finish string */
+
+/* Don't print print line before the returnstrings by default */
+gtkserver.print_line_count = 0;
 
 count_line = 0;
 
@@ -6498,7 +6531,7 @@ if (gtkserver.mode == 1) {
 
 	/* Main STDIN interface handling */
 	len = 0;
-	do {  
+	do {
 	    i = read(STDIN_FILENO, line, MAX_LEN);
 
 	    /* Fix by Sebastiaan van Erk */
@@ -6671,7 +6704,7 @@ if (gtkserver.mode == 2) {
 /**************************************************************************************** Win32 FIFO */
 /* Check for a named PIPE */
 if (gtkserver.mode == 2) {
-	
+
     /* Check the Operating System version first */
     ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
     osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
@@ -6680,12 +6713,12 @@ if (gtkserver.mode == 2) {
 	osvi.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
 	if (! GetVersionEx ((OSVERSIONINFO *) &osvi)) return FALSE;
     }
-	
+
     /* If windows9x/ME then block PIPE function */
     if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) Print_Error("%s", 1, "\nERROR: Named pipes are available on WINNT, WIN2000 and WINXP only!");
-	
+
     /* Now create named PIPE - code ripped from msdn.microsoft.com */
-    hPipe1 = CreateNamedPipe( 
+    hPipe1 = CreateNamedPipe(
 	"\\\\.\\pipe\\out",         /* pipe name */
 	PIPE_ACCESS_INBOUND,       /* read/write access */
 	PIPE_TYPE_MESSAGE |       /* message type pipe */
@@ -6698,10 +6731,10 @@ if (gtkserver.mode == 2) {
 	NULL);                    /* no security attribute */
 
     /* Exit if pipe cannot be created */
-    if (hPipe1 == INVALID_HANDLE_VALUE) Print_Error("%s", 1, "\nERROR: Could not create a named pipe!"); 
-	
+    if (hPipe1 == INVALID_HANDLE_VALUE) Print_Error("%s", 1, "\nERROR: Could not create a named pipe!");
+
     /* Now create named PIPE - code ripped from msdn.microsoft.com */
-    hPipe2 = CreateNamedPipe( 
+    hPipe2 = CreateNamedPipe(
 	"\\\\.\\pipe\\in",        /* pipe name */
 	PIPE_ACCESS_OUTBOUND,     /* read/write access */
 	PIPE_TYPE_MESSAGE |       /* message type pipe */
@@ -6714,8 +6747,8 @@ if (gtkserver.mode == 2) {
 	NULL);                    /* no security attribute */
 
     /* Exit if pipe cannot be created */
-    if (hPipe2 == INVALID_HANDLE_VALUE) Print_Error("%s", 1, "\nERROR: Could not create a named pipe!\n"); 
-	
+    if (hPipe2 == INVALID_HANDLE_VALUE) Print_Error("%s", 1, "\nERROR: Could not create a named pipe!\n");
+
     /* Wait for connection from client script */
     if (ConnectNamedPipe(hPipe1, NULL)) {
 	if (ConnectNamedPipe(hPipe2, NULL)) {
@@ -6729,7 +6762,7 @@ if (gtkserver.mode == 2) {
 		len = 0;
 		do {
 		    /* Connection established, now communicate */
-		    fSuccess = ReadFile( 
+		    fSuccess = ReadFile(
 		    hPipe1,			/* handle to pipe */
 		    chRequest,			/* buffer to receive data */
 		    MAX_LEN,			/* size of buffer */
@@ -6742,7 +6775,7 @@ if (gtkserver.mode == 2) {
 			CloseHandle(hPipe1);
 			Print_Error("%s%d", 2, "\nERROR: GetLastError returned: ", (int)GetLastError());
 		    }
-		    
+
 		    /* Realloc preserves contents, add one for \0 which is added later */
 		    if (len + cbBytesRead > MAX_LEN*page + 1) {page++; in = realloc(in, MAX_LEN*page + 1);}
 
@@ -6927,7 +6960,7 @@ while (1){
 
     		/* Realloc preserves contents, add one for \0 which is added later */
 		if (len + numbytes > MAX_LEN*page + 1) {page++; in = realloc(in, MAX_LEN*page + 1);}
-		
+
 		if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from TCP: ", strerror(errno));
 
 		memcpy(in + len, buf, numbytes);
@@ -6940,7 +6973,7 @@ while (1){
 
     	    /* Make sure we have a NULL terminated character array */
 	    if (len > 0) in[len] = '\0';
-	
+
 	    /* If logging is enabled, write incoming text to log */
 	    if (logfile != NULL){
 		fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
@@ -7033,7 +7066,7 @@ if (gtkserver.mode == 6) {
     #ifdef GTK_SERVER_USE_SSL
     /* Check if we have to do SSL */
     if (gtkserver.behave & 192){
-	
+
 	/* Initialize SSL */
 	ctx = initialize_ctx(gtkserver.certificate, gtkserver.password, logfile);
 
@@ -7134,7 +7167,7 @@ if (gtkserver.mode == 6) {
 
 	    /* Realloc preserves contents, add one for \0 which is added later */
 	    if (len + numbytes > MAX_LEN*page + 1) {page++; in = realloc(in, MAX_LEN*page + 1);}
-		
+
 	    if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from SOCKET: ", strerror(errno));
 
 	    memcpy(in + len, buf, numbytes);
@@ -7147,7 +7180,7 @@ if (gtkserver.mode == 6) {
 
 	/* Make sure we have a NULL terminated character array */
 	if (len > 0) in[len] = '\0';
-	
+
 	/* If logging is enabled, write incoming text to log */
 	if (logfile != NULL){
 	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
@@ -7231,7 +7264,7 @@ if (gtkserver.behave & 4) {
 
 /* Allocate a buffer as big as the systems UDP receive buffer. An UDP socket is not a streaming socket,
  * so we can read the data which is available only once. A repeated READ does *not* get the rest of the data. */
-#ifdef GTK_SERVER_UNIX 
+#ifdef GTK_SERVER_UNIX
 len = sizeof(page);
 getsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &page, &len);
 #endif
@@ -7375,7 +7408,7 @@ while (1){
 
 	/* Realloc preserves contents, add one for \0 which is added later */
 	if (len + numbytes > MAX_LEN*page) {page++; in = realloc(in, MAX_LEN*page + 1);}
-		
+
 	if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from IPC(ipc): ", strerror(errno));
 
 	memcpy(in + len, msgp.mtext, numbytes);
@@ -7386,7 +7419,7 @@ while (1){
 
     /* Make sure we have a NULL terminated character array */
     if (len >= 0) in[len] = '\0';
-    
+
     /* If logging is enabled, write incoming text to log */
     if (logfile != NULL){
 	fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
@@ -7536,10 +7569,10 @@ besFUNCTION(_gtk)
     VARIABLE ptr;
     char* arg0;
     char* retstr;
-	
+
     if(besARGNR>1) return EX_ERROR_TOO_MANY_ARGUMENTS;
     if(besARGNR<1) return EX_ERROR_TOO_FEW_ARGUMENTS;
-	
+
     ptr = besARGUMENT(1);
     besDEREFERENCE(ptr);
     arg0 = besCONVERT2ZCHAR(besCONVERT2STRING(ptr),arg0);

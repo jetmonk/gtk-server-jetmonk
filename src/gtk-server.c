@@ -484,6 +484,9 @@
 *               . Fixed compile warning with GCC 7 and GCC 8.
 *               . Changed 'GdkDeviceManager' to 'GdkSeat' for GDK 3.20 and higher.
 *               . Fixed issue with connecting and disconnecting signals.
+*               . New functions 'gtk_server_enable_print_line_count' and 'gtk_server_disable_print_line_count' by 10geek
+*               . Fixed errors in C string escaping by 10geek
+*               . New function 'gtk_server_enum' to obtain ad-hoc ENUM value (idea 10geek)
 *
 *************************************************************************************************************************************************/
 
@@ -3421,6 +3424,16 @@ if (inputdata != NULL) {
     else if (!strcmp("gtk_server_version", gtk_api_call)){
 	/* Return GTK-server version */
 	retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, GTK_SERVER_VERSION, gtkserver.post);
+    }
+    /* Internal call for enum */
+    else if (!strcmp("gtk_server_enum", gtk_api_call)){
+	/* Find the first argument */
+	if ((arg = parse_data(list, ++item)) == NULL){
+	    Print_Error("%s", 1, "\nERROR: Cannot find argument in GTK_SERVER_ENUM!");
+	}
+	HASH_FIND_STR(enum_protos, arg, Enum_Found);
+	/* Return GTK-server version */
+	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Enum_Found->value, gtkserver.post);
     }
     /* Internal call for packing data */
     else if (!strcmp("gtk_server_pack", gtk_api_call)){

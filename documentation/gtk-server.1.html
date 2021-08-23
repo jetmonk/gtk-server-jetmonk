@@ -302,6 +302,16 @@ This command returns the backend which has been used to compile the GTK-server: 
 
 <DD>
 This command returns the platform for which the GTK-server was compiled.
+<DT><B>gtk_server_enum</B>
+
+<DD>
+This command returns the value belonging to a enumeration defined in the GTK-server configfile. If
+the enumeration is not defined then an empty response is returned. Example:
+<P>
+<BR>
+
+gtk_server_enum GTK_RESPONSE_OK
+<P>
 <DT><B>gtk_server_callback &lt;argument&gt;</B>
 
 <DD>
@@ -731,6 +741,6 @@ the sourcepackage for credits.
 This document was created by
 <A HREF="/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 14:39:32 GMT, August 20, 2021
+Time: 19:30:26 GMT, August 23, 2021
 </BODY>
 </HTML>

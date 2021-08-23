@@ -206,6 +206,14 @@ This command returns the backend which has been used to compile the GTK-server: 
 .B gtk_server_os
 This command returns the platform for which the GTK-server was compiled.
 .TP
+.B gtk_server_enum
+This command returns the value belonging to a enumeration defined in the GTK-server configfile. If
+the enumeration is not defined then an empty response is returned. Example:
+
+.br
+gtk_server_enum GTK_RESPONSE_OK
+
+.TP
 .B gtk_server_callback <argument>
 With this command the client program will fetch a signal for one of the widgets.
 By default the widget ID is returned when a signal is received. If <argument> is 0,

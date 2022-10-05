@@ -24,6 +24,7 @@ These people have helped to create the GTK-server as it is:
 * Joonas Pihlaja: bugs found in UDP interface (hotfixed in 2.2.4)
 * Danie Brink: -socket option, many suggestions for improvements (2.3.1)
 * Jop Brown: added functions 'gtk_server_unpack_from_pointer' and 'gtk_server_string_from_pointer' (2.4.5)
+* 10geek: commands 'gtk_server_enable_print_line_count' and 'gtk_server_disable_print_line_count' (2.4.6)
 
 These people have contributed demoscripts:
 

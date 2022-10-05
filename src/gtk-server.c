@@ -724,7 +724,7 @@ typedef union {
     char		*pvalue;
     #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
     GtkObject *wvalue;
-	#elif  GTK_SERVER_GTK3x
+    #elif  GTK_SERVER_GTK3x
     GtkWidget *wvalue;
     #elif GTK_SERVER_XF
     FL_OBJECT *wvalue;
@@ -743,7 +743,7 @@ typedef union {
     char		*p_svalue;
     #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
     GtkObject	*p_wvalue;
-	#elif GTK_SERVER_GTK3x
+    #elif GTK_SERVER_GTK3x
     GtkWidget	*p_wvalue;
     #elif GTK_SERVER_XF
     FL_OBJECT	*p_wvalue;
@@ -1685,7 +1685,7 @@ gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.m
 #else
 DEV_MANAGER;
 #endif
-/* Oter data */
+/* Other data */
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.p1 = (int)(long)data1;
@@ -4199,42 +4199,56 @@ if (inputdata != NULL) {
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t1, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p1, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t1, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    case 2: if (!strcmp(varname, "STRING"))
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t2, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p2, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t2, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    case 3: if (!strcmp(varname, "STRING"))
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t3, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p3, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t3, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    case 4: if (!strcmp(varname, "STRING"))
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t4, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p4, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t4, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    case 5: if (!strcmp(varname, "STRING"))
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t5, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p5, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t5, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    case 6: if (!strcmp(varname, "STRING"))
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t6, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p6, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t6, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    case 7: if (!strcmp(varname, "STRING"))
 			retstr = Print_Result("%s%s%s%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t7, gtkserver.post);
 		    else if (!strcmp(varname, "INT"))
 			retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.p7, gtkserver.post);
+		    else if (!strcmp(varname, "POINTER"))
+			retstr = Print_Result("%s%s%lu%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.t7, gtkserver.post);
 		    else Print_Error("%s", 1, "\nERROR: Called gtk_server_callback_value with ILLEGAL argument.");
 		    break;
 	    default:
@@ -5257,7 +5271,7 @@ if (inputdata != NULL) {
 				if(*buf == 36 && *(buf+1) > 96 && *(buf+1) < 123){
 				    M_Assocs = (MACRO_ASSOC*)malloc(sizeof(MACRO_ASSOC));
 				    /* Save the assoc'ed value */
-                    memset(M_Assocs->assoc, 0, LONG_SIZE);
+                                    memset(M_Assocs->assoc, 0, LONG_SIZE);
 				    strncpy(M_Assocs->assoc, Macro_Found->var[*(buf+1) - 97], LONG_SIZE-1);
 				    /* Determine key */
 				    M_Assocs->key = strdup(Macro_Found->var[*sym - 97]);
@@ -5270,7 +5284,7 @@ if (inputdata != NULL) {
 				if(*buf == 36 && *(buf+1) > 96 && *(buf+1) < 123){
 				    M_Assocs = (MACRO_ASSOC*)malloc(sizeof(MACRO_ASSOC));
 				    /* Save the assoc'ed value */
-                    memset(M_Assocs->assoc, 0, LONG_SIZE);
+                                    memset(M_Assocs->assoc, 0, LONG_SIZE);
 				    strncpy(M_Assocs->assoc, Macro_Found->var[*(buf+1) - 97], LONG_SIZE-1);
 				    /* Determine key */
 				    M_Assocs->key = strdup(Macro_Found->args[*sym - 48]);

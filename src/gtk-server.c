@@ -487,6 +487,8 @@
 *               . New functions 'gtk_server_enable_print_line_count' and 'gtk_server_disable_print_line_count' by 10geek
 *               . Fixed errors in C string escaping by 10geek
 *               . New function 'gtk_server_enum' to obtain ad-hoc ENUM value (idea 10geek)
+*               . Fixed compile warnings with FFCall 1.3 and Cinvoke 1.0
+*               . Added runtime check for GTK to avoid functions being imported from wrong GTK library (MAJOR version mismatch)
 *
 *************************************************************************************************************************************************/
 
@@ -1133,6 +1135,9 @@ void *search_and_open_lib(char *name)
     int len, j;
     char *buf;
     char suffix[5];
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    char* (*check_gtk_version)(int, int, int) = NULL;
+    #endif
 
     if(name != NULL) {
 
@@ -1182,6 +1187,28 @@ void *search_and_open_lib(char *name)
 	    free(buf);
 	}
     }
+    #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
+        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+        if(handle) { *(void**)(&check_gtk_version) = (void*)dlsym(handle, "gtk_check_version"); }
+        #endif
+    #elif GTK_SERVER_CINV
+        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+	if(handle) { *(void**)(&check_gtk_version) = cinv_library_load_entrypoint((CInvContext*)cinv_ctx, (CInvLibrary*)handle, "gtk_check_version"); }
+        #endif
+    #elif GTK_SERVER_DYNCALL
+        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+        if(handle) { *(void**)(&check_gtk_version) = (void*)dlFindSymbol(handle, "gtk_check_version"); }
+        #endif
+    #endif
+ 
+    #if GTK_SERVER_GTK1x
+    if(check_gtk_version && check_gtk_version(1, 0, 0) != NULL) { dlclose(handle); handle = NULL; }
+    #elif GTK_SERVER_GTK2x
+    if(check_gtk_version && check_gtk_version(2, 0, 0) != NULL) { dlclose(handle); handle = NULL; }
+    #elif GTK_SERVER_GTK3x
+    if(check_gtk_version && check_gtk_version(3, 0, 0) != NULL) { dlclose(handle); handle = NULL; }
+    #endif
+
     return(handle);
 }
 
@@ -3292,7 +3319,7 @@ int position = 0;               /* For gtk_server_pack to keep position in memor
 #endif
 
 #ifdef GTK_SERVER_DYNCALL
-DCCallVM* vm;
+DCCallVM* vm = NULL;
 #endif
 
 /* Stuff needed for connecting extra signals */
@@ -6463,10 +6490,11 @@ if (gtkserver.LogDir != NULL){
     #ifdef GTK_SERVER_UNIX
 	handle[0] = dlopen(NULL, RTLD_LAZY);
 
-	i = 1;
-	while(libs[i] != NULL && i < MAX_LIBS){
-	    handle[i] = search_and_open_lib(libs[i]);
-	    i++;
+	i = 1; j = 1;
+	while(libs[j] != NULL && j < MAX_LIBS){
+	    handle[i] = search_and_open_lib(libs[j]);
+	    if(handle[i]) { i++; }
+            j++;
 	}
 
     #elif GTK_SERVER_WIN32
@@ -6474,12 +6502,17 @@ if (gtkserver.LogDir != NULL){
 	if (i > 0) {
 	    handle[0] = LoadLibrary(myname);
 	    i = 1;
+            j = 1;
 	}
-	else i = 0;
-
-	while(libs[i] != NULL && i < MAX_LIBS){
-	    handle[i] = LoadLibrary(libs[i]);
-	    i++;
+	else
+        {
+            i = 0;
+            j = 0;
+        }
+	while(libs[j] != NULL && j < MAX_LIBS){
+	    handle[i] = LoadLibrary(libs[j]);
+	    if(handle[i]) { i++; }
+            j++;
 	}
     #endif
 
@@ -6490,20 +6523,22 @@ if (gtkserver.LogDir != NULL){
 
     handle[0] = cinv_library_create(cinv_ctx, NULL);
 
-    i = 1;
-    while(libs[i] != NULL && i < MAX_LIBS){
-	handle[i] = search_and_open_lib(libs[i], cinv_ctx);
-	i++;
+    i = 1; j = 1;
+    while(libs[j] != NULL && j < MAX_LIBS){
+	handle[i] = search_and_open_lib(libs[j], cinv_ctx);
+	if(handle[i]) { i++; }
+        j++;
     }
 
 #elif GTK_SERVER_DYNCALL
 
     handle[0] = dlLoadLibrary(NULL);
 
-    i = 1;
-    while(libs[i] != NULL && i < MAX_LIBS){
-	handle[i] = search_and_open_lib(libs[i]);
-	i++;
+    i = 1; j = 1;
+    while(libs[j] != NULL && j < MAX_LIBS){
+	handle[i] = search_and_open_lib(libs[j]);
+	if(handle[i]) { i++; }
+        j++;
     }
 
 #endif

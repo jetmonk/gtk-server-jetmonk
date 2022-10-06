@@ -344,6 +344,7 @@ AC_ARG_WITH(ssl, [AS_HELP_STRING([--with-ssl],[force support for SSL (default: G
 
 # Check if OpenSSL is vailable on the system
 AC_CHECK_LIB([ssl], [SSL_library_init], [ssl=yes], [], [])
+AC_CHECK_LIB([ssl], [OPENSSL_init_ssl], [ssl=yes], [], [])
 if test "$ssl" = yes; then
     SSLFLAGS="-lcrypto -lssl"
     AC_DEFINE_UNQUOTED(GTK_SERVER_USE_SSL)

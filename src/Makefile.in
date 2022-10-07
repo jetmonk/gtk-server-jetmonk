@@ -40,11 +40,11 @@ libgtk-server-gtk3.so : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK3x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(LDFLAGS)
 
 gtk-server-gtk2 : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK2x $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(SSLFLAGS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_GTK2x $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(SSLFLAGS) $(LDFLAGS) -Wno-deprecated-declarations
 	$(STRIP) $@
 
 libgtk-server-gtk2.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK2x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_GTK2x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(LDFLAGS) -Wno-deprecated-declarations
 
 gtk-server-gtk1 : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK1x $(CFLAGS) $(GTK1_CFLAGS) -o $@ gtk-server.c $(GTK1_LIBS) $(SSLFLAGS) $(LDFLAGS)

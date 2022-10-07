@@ -4379,49 +4379,34 @@ if (inputdata != NULL) {
 	}
 	/* Have we found a GTK call? */
 	if (Call_Found != NULL) {
-	    /* Yes, now see if we can find the function in the GTK libraries */
-	    #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
-		/* Search function in libraries */
-		#ifdef GTK_SERVER_UNIX
-		    i = 0;
-		    func = NULL;
-		    while (i < MAX_LIBS && func == NULL) {
-			if (handle[i] != NULL) *(void**)&func = dlsym(handle[i], Call_Found->name);
-			i++;
-		    }
-		    if (func == NULL) Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\n\tbut cannot be found in libraries!");
-		#elif GTK_SERVER_WIN32
-		    i = 0;
-		    *func = NULL;
-		    while (i < MAX_LIBS && *func == NULL) {
-			if (handle[i] != NULL) *func = (FARPROC)GetProcAddress(handle[i], Call_Found->name);
-			i++;
-		    }
-		    if (*func == NULL) Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\nbut cannot be found in libraries!");
-		#endif
-	    #elif GTK_SERVER_CINV
-		/* Search function in GTK library */
-		i = 0;
-		func = NULL;
-		while (i < MAX_LIBS && func == NULL) {
-		    if (handle[i] != NULL) func = cinv_library_load_entrypoint((CInvContext*)cinv_ctx, (CInvLibrary*)handle[i], Call_Found->name);
-		    i++;
-		}
-		if (func == NULL) Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\n\tbut cannot be found in libraries!");
-	    #elif GTK_SERVER_DYNCALL
-		/* Search function in GTK library */
-		i = 0;
-		func = NULL;
-		while (i < MAX_LIBS && func == NULL) {
-		    if (handle[i] != NULL) func = dlFindSymbol(handle[i], Call_Found->name);
-		    i++;
-		}
-		if (func == NULL) Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\n\tbut cannot be found in libraries!");
-		else {
+	    /* Search function in libraries */
+	    #ifdef GTK_SERVER_UNIX
+	    i = 0;
+	    func = NULL;
+	    while (i < MAX_LIBS && func == NULL) {
+		if (handle[i] != NULL) *(void**)(&func) = (void*)FROMLIB(handle[i], Call_Found->name);
+		i++;
+	    }
+	    if (func == NULL) {
+                Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\n\tbut cannot be found in libraries!");
+            }
+	        #if GTK_SERVER_DYNCALL
+	        else {
 		    vm = dcNewCallVM(4096);
 		    /* Use macro here */
 		    dcMode(vm, DC_CALL_C_DEFAULT);
-		}
+	        }
+	        #endif
+            #elif GTK_SERVER_WIN32
+	    i = 0;
+	    *func = NULL;
+	    while (i < MAX_LIBS && *func == NULL) {
+		if (handle[i] != NULL) *func = (FARPROC)GetProcAddress(handle[i], Call_Found->name);
+		i++;
+	    }
+	    if (*func == NULL) {
+                Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\nbut cannot be found in libraries!");
+            }
 	    #endif
 	    /* Initialize FFCALL list */
 	    #ifdef GTK_SERVER_FFCALL

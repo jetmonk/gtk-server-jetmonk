@@ -622,6 +622,24 @@ struct stat sb;
 #define illegal_pointer(p) IsBadReadPtr(p, MAX_LEN)
 #endif
 
+/* Opening for different toolkits */
+#if GTK_SERVER_FFI || GTK_SERVER_FFCALL
+#define OPENLIB(x) dlopen(x, RTLD_LAZY)
+#elif GTK_SERVER_CINV
+#define OPENLIB(x) cinv_library_create(cinv_ctx, x)
+#elif GTK_SERVER_DYNCALL
+#define OPENLIB(x) dlLoadLibrary(x)
+#endif
+
+/* Obtaining function for different toolkits */
+#if GTK_SERVER_FFI || GTK_SERVER_FFCALL
+#define FROMLIB(x,y) dlsym(x,y)
+#elif GTK_SERVER_CINV
+#define FROMLIB(x,y) cinv_library_load_entrypoint(cinv_ctx, x, y)
+#elif GTK_SERVER_DYNCALL
+#define FROMLIB(x,y) dlFindSymbol(x, y)
+#endif
+
 /* Closing for different toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define CLOSELIB(x) dlclose(x)
@@ -1151,13 +1169,7 @@ void *search_and_open_lib(char *name)
     if(name != NULL) {
 
 	/* Attempt to open current library name first */
-	#if GTK_SERVER_FFI || GTK_SERVER_FFCALL
-	handle = dlopen(name, RTLD_LAZY);
-	#elif GTK_SERVER_CINV
-	handle = cinv_library_create(cinv_ctx, name);
-	#elif GTK_SERVER_DYNCALL
-	handle = dlLoadLibrary(name);
-	#endif
+        handle = OPENLIB(name);
 
         /* Opening fails, now start search */
 	if(handle == NULL){
@@ -1182,13 +1194,7 @@ void *search_and_open_lib(char *name)
 		strncat(buf, suffix, 5);
                 buf[MAX_LEN-1] = '\0';
 
-		#if GTK_SERVER_FFI || GTK_SERVER_FFCALL
-		handle = dlopen(buf, RTLD_LAZY);
-		#elif GTK_SERVER_CINV
-		handle = cinv_library_create(cinv_ctx, buf);
-		#elif GTK_SERVER_DYNCALL
-		handle = dlLoadLibrary(buf);
-		#endif
+                handle = OPENLIB(buf);
 		if (handle != NULL) {
 		    break;
 		}
@@ -1196,18 +1202,8 @@ void *search_and_open_lib(char *name)
 	    free(buf);
 	}
     }
-    #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
-        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-        if(handle) { *(void**)(&check_gtk_version) = (void*)dlsym(handle, "gtk_check_version"); }
-        #endif
-    #elif GTK_SERVER_CINV
-        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-	if(handle) { *(void**)(&check_gtk_version) = cinv_library_load_entrypoint((CInvContext*)cinv_ctx, (CInvLibrary*)handle, "gtk_check_version"); }
-        #endif
-    #elif GTK_SERVER_DYNCALL
-        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-        if(handle) { *(void**)(&check_gtk_version) = (void*)dlFindSymbol(handle, "gtk_check_version"); }
-        #endif
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    if(handle) { *(void**)(&check_gtk_version) = (void*)FROMLIB(handle, "gtk_check_version"); }
     #endif
  
     #if GTK_SERVER_GTK1x

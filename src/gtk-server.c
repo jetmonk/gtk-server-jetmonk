@@ -622,6 +622,15 @@ struct stat sb;
 #define illegal_pointer(p) IsBadReadPtr(p, MAX_LEN)
 #endif
 
+/* Closing for different toolkits */
+#if GTK_SERVER_FFI || GTK_SERVER_FFCALL
+#define CLOSELIB(x) dlclose(x)
+#elif GTK_SERVER_CINV
+#define CLOSELIB(x) cinv_library_delete(cinv_ctx, x)
+#elif GTK_SERVER_DYNCALL
+#define CLOSELIB(x) dlFreeLibrary(x)
+#endif
+
 /* Define structure containing configuration data */
 typedef struct config_struct {
     char *name;
@@ -1202,11 +1211,11 @@ void *search_and_open_lib(char *name)
     #endif
  
     #if GTK_SERVER_GTK1x
-    if(check_gtk_version && check_gtk_version(1, 0, 0) != NULL) { dlclose(handle); handle = NULL; }
+    if(check_gtk_version && check_gtk_version(1, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
     #elif GTK_SERVER_GTK2x
-    if(check_gtk_version && check_gtk_version(2, 0, 0) != NULL) { dlclose(handle); handle = NULL; }
+    if(check_gtk_version && check_gtk_version(2, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
     #elif GTK_SERVER_GTK3x
-    if(check_gtk_version && check_gtk_version(3, 0, 0) != NULL) { dlclose(handle); handle = NULL; }
+    if(check_gtk_version && check_gtk_version(3, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
     #endif
 
     return(handle);

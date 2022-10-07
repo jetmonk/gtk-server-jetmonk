@@ -3058,6 +3058,7 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
 	if ( c == ' ' || c == '\t' || c == '\n' || c == '\r' || curr_idx == strlen(data)){
 	    args = parse_append(args, mystrndup(data + start_idx, curr_idx - start_idx ) );
 	    state ^= in_plain;
+	    state ^= after_string;
 	}
     }
     else if ( state & in_doublequotes )	{
@@ -3124,6 +3125,7 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
 	if ( c == '"' )	{
 	    state |= in_doublequotes;
 	    start_idx = quote_dst_idx = curr_idx + 1;
+	    state ^= after_string;
 	}
 	else if ( c == '\'' ) {
 	    state |= in_singlequotes;
@@ -3143,6 +3145,7 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
         else if ( c != ' ' && c != '\t' && c != '\n' && c != '\r' ){
 	    state |= in_plain;
 	    start_idx = curr_idx;
+	    state ^= after_string;
 	}
     }
 }

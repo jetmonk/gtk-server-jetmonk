@@ -489,6 +489,7 @@
 *               . New function 'gtk_server_enum' to obtain ad-hoc ENUM value (idea 10geek)
 *               . Fixed compile warnings with FFCall 1.3 and Cinvoke 1.0
 *               . Added runtime check for GTK to avoid functions being imported from wrong GTK library (MAJOR version mismatch)
+*               . Added '@' construct so certain languages can pass strings containing spaces (eg Oberon)
 *
 *************************************************************************************************************************************************/
 
@@ -3046,6 +3047,7 @@ const int in_plain 		= 1 << 1;
 const int in_doublequotes	= 1 << 2;
 const int in_singlequotes    	= 1 << 3;
 const int after_escape 		= 1 << 4;
+const int after_string 		= 1 << 5;
 
 /* loop over the contents */
 for ( ; curr_idx <= strlen(data); ++curr_idx ){
@@ -3099,7 +3101,15 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
 	    state ^= after_escape;
 	}
 	else if ( c == '\'' ){
-	    args = parse_append(args, mystrndup(data + start_idx, quote_dst_idx - start_idx ) );
+            if ( state & after_string )
+            {
+	        args = parse_append(args, mystrndup(data + start_idx, quote_dst_idx - start_idx + 1) );
+	        state ^= after_string;
+            }
+            else
+            {
+	        args = parse_append(args, mystrndup(data + start_idx, quote_dst_idx - start_idx ) );
+            }
 	    state ^= in_singlequotes;
 	}
 	else if ( c == '\\' ){
@@ -3117,9 +3127,20 @@ for ( ; curr_idx <= strlen(data); ++curr_idx ){
 	}
 	else if ( c == '\'' ) {
 	    state |= in_singlequotes;
-	    start_idx = quote_dst_idx = curr_idx + 1;
+            if ( state & after_string )
+            {
+	        start_idx = quote_dst_idx = curr_idx;
+	        ++quote_dst_idx;
+            }
+            else
+            {
+	        start_idx = quote_dst_idx = curr_idx + 1;
+            }
 	}
-	else if ( c != ' ' && c != '\t' && c != '\n' && c != '\r' ){
+	else if ( c == '@' ) {
+	    state |= after_string;
+	}
+        else if ( c != ' ' && c != '\t' && c != '\n' && c != '\r' ){
 	    state |= in_plain;
 	    start_idx = curr_idx;
 	}

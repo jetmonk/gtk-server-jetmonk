@@ -164,6 +164,13 @@ scripts, a shebang can be added to the first line of the configfile to execute i
 .P
 The GTK-server searches for a macro with the name 'main' which will be executed first.
 
+.SH "STRINGS"
+.PP
+Client programs can send strings to the GTK-server. If a string contains spaces, the client program should
+enclose the string within double quotes. Alternatively, single quotes may be used as well. To make sure the
+string arrives literally at the GTK-server including the single quotes, the whole string should be preceeded
+with a '@' symbol.
+
 .SH "SHARED OBJECT / DLL / MODULE"
 .PP
 If the GTK-server is compiled as a shared object, the function 'gtk' can be imported

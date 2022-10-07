@@ -245,6 +245,16 @@ scripts, a shebang can be added to the first line of the configfile to execute i
 The GTK-server searches for a macro with the name 'main' which will be executed first.
 <P>
 <A NAME="lbAH">&nbsp;</A>
+<H2>STRINGS</H2>
+
+<P>
+
+Client programs can send strings to the GTK-server. If a string contains spaces, the client program should
+enclose the string within double quotes. Alternatively, single quotes may be used as well. To make sure the
+string arrives literally at the GTK-server including the single quotes, the whole string should be preceeded
+with a '@' symbol.
+<P>
+<A NAME="lbAI">&nbsp;</A>
 <H2>SHARED OBJECT / DLL / MODULE</H2>
 
 <P>
@@ -278,7 +288,7 @@ Now the GTK-server module will open the configfile at location '/my/dir', output
 to the configured logfile and also will put a dot behind all returned answers. (These separate options
 also may be preceded by the dummy command 'gtk_server_cfg'.)
 <P>
-<A NAME="lbAI">&nbsp;</A>
+<A NAME="lbAJ">&nbsp;</A>
 <H2>INTERNAL COMMANDS</H2>
 
 <P>
@@ -334,7 +344,7 @@ and column number to the callback function. These occur as the 1st and 2nd argum
 signal. (Argument 0 passes the widget ID.) To retrieve the clicked column number of a CList widget,
 perform the call 'gtk_server_callback_value 2 INT' in the client program, just after a signal
 on this widget has occurend. This will retrieve the column. The first argument may range from 0 to 7.
-The second argument 'type' may be INT or STRING to specify the type.
+The second argument 'type' may be INT, STRING or POINTER to specify the type.
 This function is not available when the GTK-server has been compiled for the XForms or Motif backend.
 <DT><B>gtk_server_connect &lt;widgetID&gt; &lt;signal&gt; &lt;description&gt; [flag]</B>
 
@@ -669,7 +679,7 @@ messages. For example:
 gtk_server_string_from_pointer 62667232
 <P>
 </DL>
-<A NAME="lbAJ">&nbsp;</A>
+<A NAME="lbAK">&nbsp;</A>
 <H2>FILES</H2>
 
 <I>gtk-server.cfg</I>
@@ -678,12 +688,12 @@ gtk_server_string_from_pointer 62667232
 The configuration file for the GTK-server.
 </DL>
 
-<A NAME="lbAK">&nbsp;</A>
+<A NAME="lbAL">&nbsp;</A>
 <H2>EXAMPLES</H2>
 
 Examples of scripts using the GTK-server can be found in the sourcepackage. Also consult
 the latest demoscripts at <A HREF="http://www.gtk-server.org/.">http://www.gtk-server.org/.</A>
-<A NAME="lbAL">&nbsp;</A>
+<A NAME="lbAM">&nbsp;</A>
 <H2>LICENSE</H2>
 
 GPL License.
@@ -702,15 +712,15 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 MA 02111-1307 USA.
-<A NAME="lbAM">&nbsp;</A>
+<A NAME="lbAN">&nbsp;</A>
 <H2>BUGS</H2>
 
 Please report bugs to: <A HREF="mailto:bugs@gtk-server.org">bugs@gtk-server.org</A>
-<A NAME="lbAN">&nbsp;</A>
+<A NAME="lbAO">&nbsp;</A>
 <H2>SEE ALSO</H2>
 
 <A HREF="/cgi-bin/man/man2html?1+stop-gtk-server">stop-gtk-server</A>(1), <A HREF="/cgi-bin/man/man2html?1+gtk-server.cfg">gtk-server.cfg</A>(1)
-<A NAME="lbAO">&nbsp;</A>
+<A NAME="lbAP">&nbsp;</A>
 <H2>AUTHORS</H2>
 
 Orignal concept, design and implementation by Peter van Eerten, e-mail : <A HREF="mailto:peter@gtk-server.org">peter@gtk-server.org</A>
@@ -728,19 +738,20 @@ the sourcepackage for credits.
 <DT><A HREF="#lbAE">ARGUMENTS</A><DD>
 <DT><A HREF="#lbAF">OPTIONS</A><DD>
 <DT><A HREF="#lbAG">SHEBANG</A><DD>
-<DT><A HREF="#lbAH">SHARED OBJECT / DLL / MODULE</A><DD>
-<DT><A HREF="#lbAI">INTERNAL COMMANDS</A><DD>
-<DT><A HREF="#lbAJ">FILES</A><DD>
-<DT><A HREF="#lbAK">EXAMPLES</A><DD>
-<DT><A HREF="#lbAL">LICENSE</A><DD>
-<DT><A HREF="#lbAM">BUGS</A><DD>
-<DT><A HREF="#lbAN">SEE ALSO</A><DD>
-<DT><A HREF="#lbAO">AUTHORS</A><DD>
+<DT><A HREF="#lbAH">STRINGS</A><DD>
+<DT><A HREF="#lbAI">SHARED OBJECT / DLL / MODULE</A><DD>
+<DT><A HREF="#lbAJ">INTERNAL COMMANDS</A><DD>
+<DT><A HREF="#lbAK">FILES</A><DD>
+<DT><A HREF="#lbAL">EXAMPLES</A><DD>
+<DT><A HREF="#lbAM">LICENSE</A><DD>
+<DT><A HREF="#lbAN">BUGS</A><DD>
+<DT><A HREF="#lbAO">SEE ALSO</A><DD>
+<DT><A HREF="#lbAP">AUTHORS</A><DD>
 </DL>
 <HR>
 This document was created by
 <A HREF="/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 19:30:26 GMT, August 23, 2021
+Time: 12:52:15 GMT, October 07, 2022
 </BODY>
 </HTML>

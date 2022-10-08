@@ -934,6 +934,22 @@ Widget obj_address[MAX_ARGS];
 void *obj_address[MAX_ARGS];
 #endif
 
+/* Debug panel variables for both standalone and lib version of GTK-server */
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+GtkTextBuffer *debug_buffer;
+GtkTextIter debug_iter;
+GtkWidget *debug_view;
+#elif GTK_SERVER_XF
+char *xf_buffer;
+FL_OBJECT *debug_view;
+#elif GTK_SERVER_MOTIF
+char *motif_buf;
+Widget debug_view;
+#endif
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+long debug_step = 0, debug_run = 0;
+#endif
+
 /* Declare callback routines */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 void gtk_server_callback_extra2(GtkWidget *widget, gpointer *data1);
@@ -1005,10 +1021,6 @@ char *base64_enc(char *arg, int len);
 
 #ifdef GTK_SERVER_LIBRARY
 
-/* Define the returnstring */
-char *retstr;
-/* Define static buffer in which to return total string */
-char *send_buffer=NULL;
 /* Define list for CONFIGURATION settings */
 CONFIG *Gtk_Api_Config = NULL;
 /* Define list for macro definitions */
@@ -1024,8 +1036,6 @@ STR *Str_Defs;
 CLASS *Class_Defs;
 #endif
 ALIAS *Alias_Defs;
-
-char *filename;
 
 #endif
 
@@ -1605,6 +1615,10 @@ if(gtkserver.behave & 128) {
 
     if(!(SSL_CTX_load_verify_locations(ctx, gtkserver.ca, 0))) Print_Error("%s", 1, "\nSSL: Cannot find file to verify CA!");
 }
+
+/* Make sure SSL3 works with legacy servers */
+SSL_CTX_set_options(ctx, SSL_OP_ALL);
+SSL_CTX_set_options(ctx, SSL_OP_LEGACY_SERVER_CONNECT);
 
 #if (OPENSSL_VERSION_NUMBER < 0x0090600fL)
 SSL_CTX_set_verify_depth(ctx, 1);
@@ -5493,6 +5507,161 @@ char filename[MAX_PATH];
 int len;
 /* Needed for static Win32 compilation */
 char myname[MAX_LEN];
+#else
+char *filename;
+#endif
+
+/* Initialize GUI toolkits */
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+gtk_init(NULL, NULL);
+#elif GTK_SERVER_XF
+argv[0] = strdup("");
+fl_initialize(&argc, argv, "XForms", 0, 0);
+#elif GTK_SERVER_MOTIF
+CLASS *Class_Defs;
+int argcc = 0;
+XtSetLanguageProc(NULL, NULL, NULL);
+gtkserver.toplevel = XtVaAppInitialize(&gtkserver.app, "Motif", NULL, 0, &argcc, NULL, NULL, NULL);
+#endif
+
+/* Needed for debug window */
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+GtkWidget *debug_window, *debug_scrolled, *debug_execute, *debug_close, *debug_next, *debug_pause, *debug_vbox, *debug_hbox;
+#elif GTK_SERVER_XF
+FL_FORM *debug_window;
+FL_OBJECT *debug_close, *debug_execute, *debug_pause, *debug_next;
+#elif GTK_SERVER_MOTIF
+Widget debug_window, debug_layer, debug_close, debug_next, debug_pause, debug_execute;
+XmFontListEntry debug_entry;
+XmFontList debug_font;
+#endif
+
+/* Define the debug window in different toolkits */
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+debug_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+gtk_window_set_title(GTK_WINDOW(debug_window), "GTK-server Debugger");
+gtk_window_set_default_size(GTK_WINDOW(debug_window), 600, 300);
+gtk_window_set_icon_name(GTK_WINDOW(debug_window), "gtk-preferences");
+debug_buffer = gtk_text_buffer_new(0);
+debug_view = gtk_text_view_new_with_buffer(debug_buffer);
+debug_scrolled = gtk_scrolled_window_new(0, 0);
+gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(debug_scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(debug_scrolled), GTK_SHADOW_ETCHED_IN);
+gtk_container_add(GTK_CONTAINER(debug_scrolled), debug_view);
+gtk_container_set_border_width(GTK_CONTAINER(debug_scrolled), 5);
+gtk_text_view_set_editable(GTK_TEXT_VIEW(debug_view), 0);
+gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(debug_view), GTK_WRAP_NONE);
+gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(debug_view), 0);
+#if GTK_SERVER_GTK2x
+debug_execute = gtk_button_new_from_stock("gtk-execute");
+debug_close = gtk_button_new_from_stock("gtk-quit");
+debug_next = gtk_button_new_from_stock("gtk-go-forward");
+debug_pause = gtk_button_new_from_stock("gtk-media-pause");
+debug_vbox = gtk_vbox_new(0, 0);
+debug_hbox = gtk_hbox_new(0, 0);
+#elif GTK_SERVER_GTK3x
+debug_execute = gtk_button_new_from_icon_name("go-jump", GTK_ICON_SIZE_DND);
+gtk_button_set_label(GTK_BUTTON(debug_execute), "Run");
+debug_close = gtk_button_new_from_icon_name("process-stop", GTK_ICON_SIZE_DND);
+gtk_button_set_label(GTK_BUTTON(debug_close), "Quit");
+debug_next = gtk_button_new_from_icon_name("go-next", GTK_ICON_SIZE_DND);
+gtk_button_set_label(GTK_BUTTON(debug_next), "Step");
+debug_pause = gtk_button_new_from_icon_name("media-playback-pause", GTK_ICON_SIZE_DND);
+gtk_button_set_label(GTK_BUTTON(debug_pause), "Pause");
+debug_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+debug_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+#endif
+gtk_box_pack_start(GTK_BOX(debug_hbox), debug_close, 0, 0, 1);
+gtk_box_pack_end(GTK_BOX(debug_hbox), debug_pause, 0, 0, 1);
+gtk_box_pack_end(GTK_BOX(debug_hbox), debug_execute, 0, 0, 1);
+gtk_box_pack_end(GTK_BOX(debug_hbox), debug_next, 0, 0, 1);
+gtk_box_pack_start(GTK_BOX(debug_vbox), debug_scrolled, 1, 1, 1);
+gtk_box_pack_start(GTK_BOX(debug_vbox), debug_hbox, 0, 0, 1);
+gtk_container_add(GTK_CONTAINER(debug_window), debug_vbox);
+g_signal_connect(debug_pause, "clicked", G_CALLBACK(switch_flag_off), &debug_run);
+g_signal_connect(debug_execute, "clicked", G_CALLBACK(switch_flag_on), &debug_run);
+g_signal_connect(debug_next, "clicked", G_CALLBACK(switch_flag_on), &debug_step);
+g_signal_connect(debug_close, "clicked", G_CALLBACK(exit), NULL);
+g_signal_connect(debug_window, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+#define update_gui while(gtk_events_pending()) { gtk_main_iteration_do(0); }
+
+#define scroll_to_end(x, y, z) do { \
+    if(z&2) gtk_text_buffer_insert_at_cursor(debug_buffer, "SCRIPT: ", -1); \
+    else gtk_text_buffer_insert_at_cursor(debug_buffer, "SERVER: ", -1); \
+    gtk_text_buffer_insert_at_cursor(debug_buffer, y, -1); \
+    if(z&1) gtk_text_buffer_insert_at_cursor(debug_buffer, "\n", -1); \
+    update_gui; \
+    gtk_text_buffer_get_end_iter(debug_buffer, &debug_iter); \
+    gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(x), &debug_iter, 0, 1, 0, 1); \
+    update_gui; \
+} while(0)
+
+#elif GTK_SERVER_XF
+debug_window = fl_bgn_form(FL_BORDER_BOX, 600, 300);
+debug_view = fl_add_input(FL_MULTILINE_INPUT, 10, 10, 580, 230, NULL);
+fl_set_input_cursor_visible(debug_view, 0);
+fl_set_object_return(debug_view, FL_RETURN_NONE);
+debug_close = fl_add_button(FL_NORMAL_BUTTON, 10, 250, 80, 40, "@#9+");
+fl_set_object_lcol(debug_close, FL_RED);
+fl_set_object_callback(debug_close, (FL_CALLBACKPTR)exit, 0);
+debug_execute = fl_add_button(FL_NORMAL_BUTTON, 420, 250, 80, 40, "@#>>");
+fl_set_object_callback(debug_execute, (FL_CALLBACKPTR)switch_flag_on, (long)&debug_run);
+debug_pause = fl_add_button(FL_NORMAL_BUTTON, 510, 250, 80, 40, "@#square");
+fl_set_object_callback(debug_pause, (FL_CALLBACKPTR)switch_flag_off, (long)&debug_run);
+debug_next = fl_add_button(FL_NORMAL_BUTTON, 330, 250, 80, 40, "@#>");
+fl_set_object_callback(debug_next, (FL_CALLBACKPTR)switch_flag_on, (long)&debug_step);
+fl_end_form();
+
+#define update_gui fl_check_forms();
+
+#define scroll_to_end(x, y, z) do { \
+    xf_buffer = strdup(fl_get_input(x)); \
+    xf_buffer = realloc(xf_buffer, strlen(xf_buffer)+strlen(y)+8+2); \
+    if(z&2) strcat(xf_buffer, "SCRIPT: "); \
+    else strcat(xf_buffer, "SERVER: "); \
+    strcat(xf_buffer, y); \
+    if(z&1) { strcat(xf_buffer, "\n"); } \
+    fl_set_input(x, xf_buffer); \
+    free(xf_buffer); \
+    while(fl_check_forms()); \
+} while(0)
+
+#elif GTK_SERVER_MOTIF
+debug_window = XtVaAppCreateShell (NULL, "Class", topLevelShellWidgetClass, XtDisplay(gtkserver.toplevel), XtNtitle, "GTK-server Debugger", NULL);
+debug_layer = XtVaCreateManagedWidget("layer", xmFormWidgetClass, debug_window, NULL);
+XtVaSetValues(debug_layer, XmNwidth, 600, XmNheight, 300, NULL);
+debug_entry = XmFontListEntryLoad(XtDisplay(gtkserver.toplevel), "7x13bold" , XmFONT_IS_FONT, "tag");
+debug_font = XmFontListAppendEntry(NULL, debug_entry);
+XmFontListEntryFree(&debug_entry);
+debug_view = XmCreateScrolledText(debug_layer, "text", NULL, 0);
+XtVaSetValues(XtParent(debug_view), XmNwidth, 580, XmNheight, 220, XmNx, 10, XmNy, 10, XmNleftAttachment, XmATTACH_SELF, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XmNtopAttachment, XmATTACH_SELF, NULL);
+XtVaSetValues(debug_view, XmNfontList, debug_font, XmNeditMode, XmMULTI_LINE_EDIT, XmNeditable, False, XmNcursorPositionVisible, False, NULL);
+XtManageChild(debug_view);
+debug_close = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 10, XmNy, 250, XmNleftAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Quit", 4, NULL);
+XtAddCallback((Widget)debug_close, XmNactivateCallback, (XtCallbackProc)exit, NULL);
+debug_next = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 330, XmNy, 250, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Step", 4, NULL);
+XtAddCallback((Widget)debug_next, XmNactivateCallback, (XtCallbackProc)switch_flag_on, &debug_step);
+debug_execute = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 420, XmNy, 250, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Run", 4, NULL);
+XtAddCallback((Widget)debug_execute, XmNactivateCallback, (XtCallbackProc)switch_flag_on, &debug_run);
+debug_pause = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 510, XmNy, 250, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Pause", 4, NULL);
+XtAddCallback((Widget)debug_pause, XmNactivateCallback, (XtCallbackProc)switch_flag_off, &debug_run);
+if (gtkserver.behave & 512) { XtRealizeWidget(debug_window); }
+
+#define update_gui while(XtAppPending(gtkserver.app)) { XtAppProcessEvent(gtkserver.app, XtIMAll); }
+
+#define scroll_to_end(x, y, z) do { \
+    motif_buf = XmTextGetString(x); \
+    motif_buf = realloc(motif_buf, strlen(motif_buf)+strlen(y)+8+2); \
+    if(z&2) strcat(motif_buf, "SCRIPT: "); \
+    else strcat(motif_buf, "SERVER: "); \
+    strcat(motif_buf, y); \
+    if(z&1) { strcat(motif_buf, "\n"); } \
+    XmTextSetString(x, motif_buf); \
+    XmTextShowPosition(debug_view, strlen(motif_buf)); \
+    XtFree(motif_buf); \
+    update_gui; \
+} while(0)
 #endif
 
 #ifndef GTK_SERVER_LIBRARY
@@ -5509,11 +5678,6 @@ BODY *Body_Last = NULL;
 /* Define list for enum definitions */
 ENUM *Enum_Defs;
 STR *Str_Defs;
-/* Define list for enum definitions */
-#ifdef GTK_SERVER_MOTIF
-CLASS *Class_Defs;
-int argcc = 0;
-#endif
 /* Define list for alias definitions */
 ALIAS *Alias_Defs;
 /* Define vars for TCP sockets */
@@ -5535,30 +5699,12 @@ SSL *ssl = NULL;
 BIO *sbio;
 #endif
 
-/* Needed for debug window */
-#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-GtkWidget *debug_window;
-GtkTextBuffer *debug_buffer;
-GtkTextIter debug_iter;
-GtkWidget *debug_view, *debug_scrolled, *debug_execute, *debug_close, *debug_next, *debug_pause, *debug_vbox, *debug_hbox;
-#elif GTK_SERVER_XF
-FL_FORM *debug_window;
-FL_OBJECT *debug_view, *debug_close, *debug_execute, *debug_pause, *debug_next;
-char *xf_buffer;
-#elif GTK_SERVER_MOTIF
-Widget debug_window, debug_layer, debug_view, debug_close, debug_next, debug_pause, debug_execute;
-XmFontListEntry debug_entry;
-XmFontList debug_font;
-char *motif_buf;
-#endif
 #if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 fd_set rfds;				/* Needed for file descriptor polling in case debug window is used */
 struct timeval tv;
-long debug_step = 0, debug_run = 0;
 #endif
 
 #ifdef GTK_SERVER_UNIX
-char *filename;
 socklen_t sin_size, addr_len;
 #ifdef GTK_SERVER_SOCK_LONG
 unsigned long len;
@@ -5664,17 +5810,6 @@ if (argc < 2 || !strncmp(argv[1], "help", 4) || !strncmp(argv[1], "-help", 5)) {
     exit (EXIT_SUCCESS);
     #endif
 }
-
-/* Initialize GUI toolkits */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-gtk_init(NULL, NULL);
-#elif GTK_SERVER_XF
-argv[0] = strdup("");
-fl_initialize(&argc, argv, "XForms", 0, 0);
-#elif GTK_SERVER_MOTIF
-XtSetLanguageProc(NULL, NULL, NULL);
-gtkserver.toplevel = XtVaAppInitialize(&gtkserver.app, "Motif", NULL, 0, &argcc, NULL, NULL, NULL);
-#endif
 
 /* See if we are running from a shebang */
 if(!strncmp(argv[1], "this", 4) || !strncmp(argv[1], "-this", 5)){
@@ -5846,6 +5981,13 @@ else {
 	    gtkserver.behave |= 256;
 	}
 	else if (!strncmp(argv[i], "debug", 5) || !strncmp(argv[i], "-debug", 6)){ /* Show debug dialog with logging? */
+            #if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+            gtk_widget_show_all(debug_window);
+            #elif GTK_SERVER_XF
+            fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
+            #elif GTK_SERVER_MOTIF
+            XtRealizeWidget(debug_window);
+            #endif
 	    gtkserver.behave |= 512;
 	}
 	else if (!strncmp(argv[i], "nonl", 4) || !strncmp(argv[i], "-nonl", 5)){ /* Do not add a newline after each string coming back from GTK-server */
@@ -5857,136 +5999,6 @@ else {
 	}
     }
 }
-
-/* Define the debug window */
-#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-debug_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-gtk_window_set_title(GTK_WINDOW(debug_window), "GTK-server Debugger");
-gtk_window_set_default_size(GTK_WINDOW(debug_window), 600, 300);
-gtk_window_set_icon_name(GTK_WINDOW(debug_window), "gtk-preferences");
-debug_buffer = gtk_text_buffer_new(0);
-debug_view = gtk_text_view_new_with_buffer(debug_buffer);
-debug_scrolled = gtk_scrolled_window_new(0, 0);
-gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(debug_scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(debug_scrolled), GTK_SHADOW_ETCHED_IN);
-gtk_container_add(GTK_CONTAINER(debug_scrolled), debug_view);
-gtk_container_set_border_width(GTK_CONTAINER(debug_scrolled), 5);
-gtk_text_view_set_editable(GTK_TEXT_VIEW(debug_view), 0);
-gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(debug_view), GTK_WRAP_NONE);
-gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(debug_view), 0);
-#if GTK_SERVER_GTK2x
-debug_execute = gtk_button_new_from_stock("gtk-execute");
-debug_close = gtk_button_new_from_stock("gtk-quit");
-debug_next = gtk_button_new_from_stock("gtk-go-forward");
-debug_pause = gtk_button_new_from_stock("gtk-media-pause");
-debug_vbox = gtk_vbox_new(0, 0);
-debug_hbox = gtk_hbox_new(0, 0);
-#elif GTK_SERVER_GTK3x
-debug_execute = gtk_button_new_from_icon_name("go-jump", GTK_ICON_SIZE_DND);
-gtk_button_set_label(GTK_BUTTON(debug_execute), "Run");
-debug_close = gtk_button_new_from_icon_name("process-stop", GTK_ICON_SIZE_DND);
-gtk_button_set_label(GTK_BUTTON(debug_close), "Quit");
-debug_next = gtk_button_new_from_icon_name("go-next", GTK_ICON_SIZE_DND);
-gtk_button_set_label(GTK_BUTTON(debug_next), "Step");
-debug_pause = gtk_button_new_from_icon_name("media-playback-pause", GTK_ICON_SIZE_DND);
-gtk_button_set_label(GTK_BUTTON(debug_pause), "Pause");
-debug_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-debug_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-#endif
-gtk_box_pack_start(GTK_BOX(debug_hbox), debug_close, 0, 0, 1);
-gtk_box_pack_end(GTK_BOX(debug_hbox), debug_pause, 0, 0, 1);
-gtk_box_pack_end(GTK_BOX(debug_hbox), debug_execute, 0, 0, 1);
-gtk_box_pack_end(GTK_BOX(debug_hbox), debug_next, 0, 0, 1);
-gtk_box_pack_start(GTK_BOX(debug_vbox), debug_scrolled, 1, 1, 1);
-gtk_box_pack_start(GTK_BOX(debug_vbox), debug_hbox, 0, 0, 1);
-gtk_container_add(GTK_CONTAINER(debug_window), debug_vbox);
-g_signal_connect(debug_pause, "clicked", G_CALLBACK(switch_flag_off), &debug_run);
-g_signal_connect(debug_execute, "clicked", G_CALLBACK(switch_flag_on), &debug_run);
-g_signal_connect(debug_next, "clicked", G_CALLBACK(switch_flag_on), &debug_step);
-g_signal_connect(debug_close, "clicked", G_CALLBACK(exit), NULL);
-g_signal_connect(debug_window, "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-if (gtkserver.behave & 512) { gtk_widget_show_all(debug_window); }
-
-#define update_gui while(gtk_events_pending()) { gtk_main_iteration_do(0); }
-
-#define scroll_to_end(x, y, z) do { \
-    if(z&2) gtk_text_buffer_insert_at_cursor(debug_buffer, "SCRIPT: ", -1); \
-    else gtk_text_buffer_insert_at_cursor(debug_buffer, "SERVER: ", -1); \
-    gtk_text_buffer_insert_at_cursor(debug_buffer, y, -1); \
-    if(z&1) gtk_text_buffer_insert_at_cursor(debug_buffer, "\n", -1); \
-    update_gui; \
-    gtk_text_buffer_get_end_iter(debug_buffer, &debug_iter); \
-    gtk_text_view_scroll_to_iter(GTK_TEXT_VIEW(x), &debug_iter, 0, 1, 0, 1); \
-    update_gui; \
-} while(0)
-
-#elif GTK_SERVER_XF
-debug_window = fl_bgn_form(FL_BORDER_BOX, 600, 300);
-debug_view = fl_add_input(FL_MULTILINE_INPUT, 10, 10, 580, 230, NULL);
-fl_set_input_cursor_visible(debug_view, 0);
-fl_set_object_return(debug_view, FL_RETURN_NONE);
-debug_close = fl_add_button(FL_NORMAL_BUTTON, 10, 250, 80, 40, "@#9+");
-fl_set_object_lcol(debug_close, FL_RED);
-fl_set_object_callback(debug_close, (FL_CALLBACKPTR)exit, 0);
-debug_execute = fl_add_button(FL_NORMAL_BUTTON, 420, 250, 80, 40, "@#>>");
-fl_set_object_callback(debug_execute, (FL_CALLBACKPTR)switch_flag_on, (long)&debug_run);
-debug_pause = fl_add_button(FL_NORMAL_BUTTON, 510, 250, 80, 40, "@#square");
-fl_set_object_callback(debug_pause, (FL_CALLBACKPTR)switch_flag_off, (long)&debug_run);
-debug_next = fl_add_button(FL_NORMAL_BUTTON, 330, 250, 80, 40, "@#>");
-fl_set_object_callback(debug_next, (FL_CALLBACKPTR)switch_flag_on, (long)&debug_step);
-fl_end_form();
-if (gtkserver.behave & 512) { fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger"); }
-
-#define update_gui fl_check_forms();
-
-#define scroll_to_end(x, y, z) do { \
-    xf_buffer = strdup(fl_get_input(x)); \
-    xf_buffer = realloc(xf_buffer, strlen(xf_buffer)+strlen(y)+8+2); \
-    if(z&2) strcat(xf_buffer, "SCRIPT: "); \
-    else strcat(xf_buffer, "SERVER: "); \
-    strcat(xf_buffer, y); \
-    if(z&1) { strcat(xf_buffer, "\n"); } \
-    fl_set_input(x, xf_buffer); \
-    free(xf_buffer); \
-    while(fl_check_forms()); \
-} while(0)
-
-#elif GTK_SERVER_MOTIF
-debug_window = XtVaAppCreateShell (NULL, "Class", topLevelShellWidgetClass, XtDisplay(gtkserver.toplevel), XtNtitle, "GTK-server Debugger", NULL);
-debug_layer = XtVaCreateManagedWidget("layer", xmFormWidgetClass, debug_window, NULL);
-XtVaSetValues(debug_layer, XmNwidth, 600, XmNheight, 300, NULL);
-debug_entry = XmFontListEntryLoad(XtDisplay(gtkserver.toplevel), "7x13bold" , XmFONT_IS_FONT, "tag");
-debug_font = XmFontListAppendEntry(NULL, debug_entry);
-XmFontListEntryFree(&debug_entry);
-debug_view = XmCreateScrolledText(debug_layer, "text", NULL, 0);
-XtVaSetValues(XtParent(debug_view), XmNwidth, 580, XmNheight, 220, XmNx, 10, XmNy, 10, XmNleftAttachment, XmATTACH_SELF, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XmNtopAttachment, XmATTACH_SELF, NULL);
-XtVaSetValues(debug_view, XmNfontList, debug_font, XmNeditMode, XmMULTI_LINE_EDIT, XmNeditable, False, XmNcursorPositionVisible, False, NULL);
-XtManageChild(debug_view);
-debug_close = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 10, XmNy, 250, XmNleftAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Quit", 4, NULL);
-XtAddCallback((Widget)debug_close, XmNactivateCallback, (XtCallbackProc)exit, NULL);
-debug_next = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 330, XmNy, 250, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Step", 4, NULL);
-XtAddCallback((Widget)debug_next, XmNactivateCallback, (XtCallbackProc)switch_flag_on, &debug_step);
-debug_execute = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 420, XmNy, 250, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Run", 4, NULL);
-XtAddCallback((Widget)debug_execute, XmNactivateCallback, (XtCallbackProc)switch_flag_on, &debug_run);
-debug_pause = XtVaCreateManagedWidget("button", xmPushButtonWidgetClass, debug_layer, XmNfontList, debug_font, XmNwidth, 80, XmNheight, 40, XmNx, 510, XmNy, 250, XmNrightAttachment, XmATTACH_SELF, XmNbottomAttachment, XmATTACH_SELF, XtVaTypedArg, XmNlabelString, XmRString, "Pause", 4, NULL);
-XtAddCallback((Widget)debug_pause, XmNactivateCallback, (XtCallbackProc)switch_flag_off, &debug_run);
-if (gtkserver.behave & 512) { XtRealizeWidget(debug_window); }
-
-#define update_gui while(XtAppPending(gtkserver.app)) { XtAppProcessEvent(gtkserver.app, XtIMAll); }
-
-#define scroll_to_end(x, y, z) do { \
-    motif_buf = XmTextGetString(x); \
-    motif_buf = realloc(motif_buf, strlen(motif_buf)+strlen(y)+8+2); \
-    if(z&2) strcat(motif_buf, "SCRIPT: "); \
-    else strcat(motif_buf, "SERVER: "); \
-    strcat(motif_buf, y); \
-    if(z&1) { strcat(motif_buf, "\n"); } \
-    XmTextSetString(x, motif_buf); \
-    XmTextShowPosition(debug_view, strlen(motif_buf)); \
-    XtFree(motif_buf); \
-    update_gui; \
-} while(0)
-#endif
 
 #else	/* ----------------------------------------------- LIBRARY is defined -------------------------------------- */
 int init_result = 0;
@@ -6030,6 +6042,18 @@ do {
     }
     else if (!strncmp(Trim_String(user_data), "handle", 6) || !strncmp(Trim_String(user_data), "-handle", 7)){
 	gtkserver.behave |= 256;	    /* Find handle flag */
+	user_data = strtok(NULL, " ");
+	init_result++;
+    }
+    else if (!strncmp(Trim_String(user_data), "debug", 5) || !strncmp(Trim_String(user_data), "-debug", 6)){  /* Show debug dialog with logging? */
+        #if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+        gtk_widget_show_all(debug_window);
+        #elif GTK_SERVER_XF
+        fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
+        #elif GTK_SERVER_MOTIF
+        XtRealizeWidget(debug_window);
+        #endif
+	gtkserver.behave |= 512;
 	user_data = strtok(NULL, " ");
 	init_result++;
     }
@@ -7564,6 +7588,8 @@ char *motif (char *arg)
 char *cons (char *arg)
 #endif
 {
+char *retstr;
+
 /* Check if Shared Object is initialized */
 if (gtk_protos == NULL){
     if (init(strdup(arg))) {
@@ -7591,6 +7617,21 @@ if (logfile != NULL) {
     fflush(logfile);
 }
 
+/* Debug window */
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+if (gtkserver.behave & 512) {
+    /* Poll GUI to see if data is available */
+    while(debug_step == 0)
+    {
+	debug_step = debug_run;
+        usleep(500);
+        update_gui;
+    }
+    if(debug_run || debug_step == 1) { debug_step = 0; }
+    scroll_to_end(debug_view, Trim_String(arg), 3);
+}
+#endif
+
 retstr = Call_Realize(Trim_String(arg), cinv_ctx);
 
 /* If logging is enabled, write returnstring to log */
@@ -7601,6 +7642,11 @@ if (logfile != NULL){
 
 /* Close the logfile again */
 if (logfile != NULL) fclose(logfile);
+
+
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
+#endif
 
 /* No string buffer, regular answer from GTK-server */
 return (char*)retstr;

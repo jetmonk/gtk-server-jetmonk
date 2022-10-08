@@ -14,7 +14,7 @@
 )
 
 # Optionally enable GTK logging
-(gtk "gtk_server_cfg -log=/tmp/gtk-server.log")
+(gtk "gtk_server_cfg -log=/tmp/gtk-server.log -debug")
 
 # Connect to the GTK-server
 (gtk "gtk_init NULL NULL")

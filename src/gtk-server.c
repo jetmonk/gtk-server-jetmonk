@@ -490,6 +490,8 @@
 *               . Fixed compile warnings with FFCall 1.3 and Cinvoke 1.0
 *               . Added runtime check for GTK to avoid functions being imported from wrong GTK library (MAJOR version mismatch)
 *               . Added '@' construct so certain languages can pass strings containing spaces (eg Oberon)
+*               . Debug panel now also works in GTK-server Library mode
+*               . When compiling with SSL: enable legacy servers by default
 *
 *************************************************************************************************************************************************/
 

@@ -20,7 +20,7 @@ function motif() { echo $1 > $PI; read MOTIF < $PI; }
 function define() { $2 "$3"; eval $1=$MOTIF; }
 
 # Start gtk-server in FIFO mode
-gtk-server-motif -fifo=$PI -detach -debug
+gtk-server-motif -fifo=$PI -detach -debug -log=/tmp/motif.log
 while [ ! -p $PI ]; do continue; done
 
 function ConvertValue

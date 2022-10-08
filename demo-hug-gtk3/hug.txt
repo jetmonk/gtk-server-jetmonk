@@ -35,6 +35,7 @@ m_window "title" xsize ysize			: Define a new window.
 m_button "label" xsize ysize [toggle]		: Define a button. If optional [toggle] unequal 0 then button is a togglebutton.
 m_stock "stock-label" xsize ysize		: Define a stock button.
 m_check "label" xsize ysize			: Define a checkbutton.
+m_spin xsize ysize min max step			: Define a spinbutton, values are floating type.
 m_radio "label" xsize ysize group		: Define a radiobutton.
 m_entry "text" xsize ysize			: Define a text entry.
 m_password xsize ysize				: Define a password entry.
@@ -95,6 +96,7 @@ m_list_grab widget				: Get current selected text from list widget
 
 m_button_get widget				: Get status of button, in case of a togglebutton
 m_check_get widget				: Get status of checkbutton
+m_spin_get widget				: Get value from spinbutton
 m_radio_get widget				: Get status of radiobutton
 m_combo_get wiget				: Get indexnr of currently selected text
 m_text_get widget				: Get amount of lines in multiline text widget
@@ -102,6 +104,7 @@ m_list_get widget				: Get current selected linenumber of list widget
 
 m_button_set widget value			: Set the button, in case of a togglebutton: 0=normal, 1=pressed
 m_check_set widget value			: Set the checkbutton: 0=normal, 1=selected
+m_spin_set widget value				: Set value to spinbutton
 m_radio_set widget value			: Set the radiobutton: 0=normal, 1=selected
 m_combo_set widget indexnr			: Select this line of the combobox
 m_text_set widget linenr			: Scroll the multiline text widget to this linenr

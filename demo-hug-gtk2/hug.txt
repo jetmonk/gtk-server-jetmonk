@@ -35,7 +35,7 @@ u_window "title" xsize ysize			: Define a new window.
 u_button "label" xsize ysize [toggle]		: Define a button. If optional [toggle] unequal 0 then button is a togglebutton.
 u_stock "stock-label" xsize ysize		: Define a stock button.
 u_check "label" xsize ysize			: Define a checkbutton.
-u_spin xsize ysize min max step			: Define a spinbutton, values are floating type.
+u_spin xsize ysize min max step			: Define a spinbutton, values for min, max, step are floating type.
 u_radio "label" xsize ysize group		: Define a radiobutton.
 u_entry "text" xsize ysize			: Define a text entry.
 u_password xsize ysize				: Define a password entry.

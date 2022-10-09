@@ -491,7 +491,7 @@
 *               . Added runtime check for GTK to avoid functions being imported from wrong GTK library (MAJOR version mismatch)
 *               . Added '@' construct so certain languages can pass strings containing spaces (eg Oberon)
 *               . Debug panel now also works in GTK-server Library mode
-*               . When compiling with SSL: enable legacy servers by default
+*               . When compiling with OpenSSL3: enable legacy servers by default
 *
 *************************************************************************************************************************************************/
 
@@ -625,7 +625,7 @@ struct stat sb;
 #define illegal_pointer(p) IsBadReadPtr(p, MAX_LEN)
 #endif
 
-/* Opening for different toolkits */
+/* Opening for different FF toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define OPENLIB(x) dlopen(x, RTLD_LAZY)
 #elif GTK_SERVER_CINV
@@ -634,7 +634,7 @@ struct stat sb;
 #define OPENLIB(x) dlLoadLibrary(x)
 #endif
 
-/* Obtaining function for different toolkits */
+/* Obtaining function for different FF toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define FROMLIB(x,y) dlsym(x,y)
 #elif GTK_SERVER_CINV
@@ -643,7 +643,7 @@ struct stat sb;
 #define FROMLIB(x,y) dlFindSymbol(x, y)
 #endif
 
-/* Closing for different toolkits */
+/* Closing for different FF toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define CLOSELIB(x) dlclose(x)
 #elif GTK_SERVER_CINV

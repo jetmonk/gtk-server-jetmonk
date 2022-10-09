@@ -35,7 +35,7 @@ m_window "title" xsize ysize			: Define a new window.
 m_button "label" xsize ysize [toggle]		: Define a button. If optional [toggle] unequal 0 then button is a togglebutton.
 m_stock "stock-label" xsize ysize		: Define a stock button.
 m_check "label" xsize ysize			: Define a checkbutton.
-m_spin xsize ysize min max step			: Define a spinbutton, values are floating type.
+m_spin xsize ysize min max step			: Define a spinbutton, values for min, max, step are floating type.
 m_radio "label" xsize ysize group		: Define a radiobutton.
 m_entry "text" xsize ysize			: Define a text entry.
 m_password xsize ysize				: Define a password entry.

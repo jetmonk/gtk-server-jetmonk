@@ -30,7 +30,7 @@ gtk-server-gtk3 -fifo=$PIPE -debug -detach
 while [ ! -p $PIPE ]; do continue; done
 
 # Get GtkSheet
-REQ=$(gtk "gtk_server_require libwebkitgtk-3.0.so")
+REQ=$(gtk "gtk_server_require libwebkit2gtk-4.0.so")
 if [[ $REQ != "ok" ]]
 then
     echo "No libwebkit library found!"

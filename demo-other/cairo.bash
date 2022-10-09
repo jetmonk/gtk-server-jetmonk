@@ -61,3 +61,5 @@ cairo "cairo_surface_destroy ${surface}"
 
 # Exit GTK-server
 cairo "gtk_server_exit"
+
+echo "File 'hello.png' created."

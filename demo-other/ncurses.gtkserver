@@ -1,4 +1,4 @@
-#!/usr/bin/gtk-server -this
+#!/usr/local/bin/gtk-server-console -this
 #---------------------------------------------------------------------
 #
 # Using the GTK-server you can also run a standalone program.

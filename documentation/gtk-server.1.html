@@ -277,11 +277,11 @@ which can be imported in a client program. See the respective directories in the
 for details.
 <P>
 
-Only with the first call to the imported 'gtk'-function the options 'log', 'cfg', 'pre' and 'post' can be
-submitted. For example:
+Only with a first call 'gtk_server_cfg' to the imported 'gtk'-function the options 'log', 'cfg', 'pre'
+and 'post' can be submitted. For example:
 <P>
 
-gtk &quot;log=/dir/logfile cfg=/my/dir/gtk-server.cfg post=.&quot;
+gtk &quot;gtk_server_cfg log=/dir/logfile cfg=/my/dir/gtk-server.cfg post=.&quot;
 <P>
 
 Now the GTK-server module will open the configfile at location '/my/dir', output it's logging
@@ -603,7 +603,7 @@ When the GTK-server is compiled as a library, then this command can set the loca
 <P>
 <BR>
 
-gtk_server_cfg -log=/tm/gtk-server.log -post=.
+gtk_server_cfg -log=/tmp/gtk-server.log -post=. -debug
 <DT><B>gtk_server_state</B>
 
 <DD>
@@ -752,6 +752,6 @@ the sourcepackage for credits.
 This document was created by
 <A HREF="/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 12:52:15 GMT, October 07, 2022
+Time: 18:15:40 GMT, October 10, 2022
 </BODY>
 </HTML>

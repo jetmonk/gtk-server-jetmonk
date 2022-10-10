@@ -6050,72 +6050,73 @@ XtSetLanguageProc(NULL, NULL, NULL);
 gtkserver.toplevel = XtVaAppInitialize(&gtkserver.app, "Motif", NULL, 0, &argc, NULL, NULL, NULL);
 #endif
 
-do {
-    if (!strncmp(Trim_String(user_data), "gtk_server_cfg", 14) || !strncmp(Trim_String(user_data), "GTK_SERVER_CFG", 14)){
-	user_data = strtok(user_data, " ");                                                     /* Ignore dummy cfg command */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    if (!strncmp(Trim_String(user_data), "cfg=", 4) || !strncmp(Trim_String(user_data), "-cfg=", 5)){
-	user_cfgfile = user_data;							       /* Find configfile */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else if (!strncmp(Trim_String(user_data), "pre=", 4) || !strncmp(Trim_String(user_data), "-pre=", 5)){
-	gtkserver.pre = user_data;							        /* Find pre */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else if (!strncmp(Trim_String(user_data), "post=", 5) || !strncmp(Trim_String(user_data), "-post=", 6)){
-	gtkserver.post = user_data;						                /* Find post */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else if (!strncmp(Trim_String(user_data), "start=", 6) || !strncmp(Trim_String(user_data), "-start=", 7)){
-	gtkserver.macro = user_data;						                /* Start with macro*/
-	gtkserver.behave |= 16;
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else if (!strncmp(Trim_String(user_data), "handle", 6) || !strncmp(Trim_String(user_data), "-handle", 7)){
-	gtkserver.behave |= 256;	                                                        /* Find handle flag */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else if (!strncmp(Trim_String(user_data), "debug", 5) || !strncmp(Trim_String(user_data), "-debug", 6)){  /* Show debug dialog with logging? */
-        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-        gtk_widget_show_all(debug_window);
-        #elif GTK_SERVER_XF
-        fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
-        #elif GTK_SERVER_MOTIF
-        XtRealizeWidget(debug_window);
+if (!strncmp(Trim_String(user_data), "gtk_server_cfg", 14) || !strncmp(Trim_String(user_data), "GTK_SERVER_CFG", 14))
+{
+    user_data = strtok(user_data, " ");                                                     /* Ignore dummy cfg command */
+    user_data = strtok(NULL, " ");
+    init_result++;
+    do {
+        if (!strncmp(Trim_String(user_data), "cfg=", 4) || !strncmp(Trim_String(user_data), "-cfg=", 5)){
+	    user_cfgfile = user_data;							       /* Find configfile */
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else if (!strncmp(Trim_String(user_data), "pre=", 4) || !strncmp(Trim_String(user_data), "-pre=", 5)){
+	    gtkserver.pre = user_data;							        /* Find pre */
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else if (!strncmp(Trim_String(user_data), "post=", 5) || !strncmp(Trim_String(user_data), "-post=", 6)){
+	    gtkserver.post = user_data;						                /* Find post */
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else if (!strncmp(Trim_String(user_data), "start=", 6) || !strncmp(Trim_String(user_data), "-start=", 7)){
+	    gtkserver.macro = user_data;						        /* Start with macro */
+	    gtkserver.behave |= 16;
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else if (!strncmp(Trim_String(user_data), "handle", 6) || !strncmp(Trim_String(user_data), "-handle", 7)){
+	    gtkserver.behave |= 256;	                                                        /* Find handle flag */
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else if (!strncmp(Trim_String(user_data), "debug", 5) || !strncmp(Trim_String(user_data), "-debug", 6)){  /* Show debug dialog with logging? */
+            #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+            gtk_widget_show_all(debug_window);
+            #elif GTK_SERVER_XF
+            fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
+            #elif GTK_SERVER_MOTIF
+            XtRealizeWidget(debug_window);
+            #endif
+	    gtkserver.behave |= 512;
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else if (!strncmp(Trim_String(user_data), "nonl", 4) || !strncmp(Trim_String(user_data), "-nonl", 5)){
+	    gtkserver.behave |= 1024;
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        #ifdef GTK_SERVER_UNIX
+        else if (!strncmp(Trim_String(user_data), "signal=", 7) || !strncmp(Trim_String(user_data), "-signal=", 8)){
+	    gtkserver.behave |= 8;
+            cache = user_data;                                                             /* Signal when exit */
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
         #endif
-	gtkserver.behave |= 512;
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else if (!strncmp(Trim_String(user_data), "nonl", 4) || !strncmp(Trim_String(user_data), "-nonl", 5)){
-	gtkserver.behave |= 1024;
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    #ifdef GTK_SERVER_UNIX
-    else if (!strncmp(Trim_String(user_data), "signal=", 7) || !strncmp(Trim_String(user_data), "-signal=", 8)){
-	gtkserver.behave |= 8;
-        cache = user_data;                                                             /* Signal when exit */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    #endif
-    else if (!strncmp(Trim_String(user_data), "log=", 4) || !strncmp(Trim_String(user_data), "-log=", 5)){
-	gtkserver.LogDir = user_data;							            /* Set logfile */
-	user_data = strtok(NULL, " ");
-	init_result++;
-    }
-    else {
-	user_data = strtok(NULL, " ");
-    }
-} while(user_data != NULL);
+        else if (!strncmp(Trim_String(user_data), "log=", 4) || !strncmp(Trim_String(user_data), "-log=", 5)){
+	    gtkserver.LogDir = user_data;							            /* Set logfile */
+	    user_data = strtok(NULL, " ");
+	    init_result++;
+        }
+        else {
+	    user_data = strtok(NULL, " ");
+        }
+    } while(user_data != NULL);
+}
 
 /* Now get actual settings */
 if (user_cfgfile != NULL) {

@@ -187,10 +187,10 @@ It is also possible to compile the GTK-server as an S-Lang, Scriptbasic or Korns
 which can be imported in a client program. See the respective directories in the sourcepackage
 for details.
 .P
-Only with the first call to the imported 'gtk'-function the options 'log', 'cfg', 'pre' and 'post' can be
-submitted. For example:
+Only with a first call 'gtk_server_cfg' to the imported 'gtk'-function the options 'log', 'cfg', 'pre'
+and 'post' can be submitted. For example:
 .P
-gtk "log=/dir/logfile cfg=/my/dir/gtk-server.cfg post=."
+gtk "gtk_server_cfg log=/dir/logfile cfg=/my/dir/gtk-server.cfg post=."
 .P
 Now the GTK-server module will open the configfile at location '/my/dir', output it's logging
 to the configured logfile and also will put a dot behind all returned answers. (These separate options
@@ -448,7 +448,7 @@ gtk_server_connect <DrawingAreaID> "XmNinputCallback" "keypressed"
 When the GTK-server is compiled as a library, then this command can set the location of the log file and other options. Example:
 
 .br
-gtk_server_cfg -log=/tm/gtk-server.log -post=.
+gtk_server_cfg -log=/tmp/gtk-server.log -post=. -debug
 .TP
 .B gtk_server_state
 Returns the value of a state key if it is pressed. If SHIFT is pressed, a '1' is returned, if CTRL is pressed '4', if ALT is pressed '8' and so on.

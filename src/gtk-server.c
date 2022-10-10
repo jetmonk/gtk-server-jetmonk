@@ -2598,10 +2598,8 @@ List_Sigs->data = strdup(call->callbacktype);
 /* Connect signals */
 if (strcmp(call->callbacktype, "NONE")) {
 
-    #if GTK_SERVER_GTK1x
-    gtk_signal_connect(GTK_OBJECT(widget), call->callbacktype, GTK_SIGNAL_FUNC(gtk_server_callback), (gpointer*)List_Sigs->data);
-    #elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-    g_signal_connect(GTK_OBJECT(widget), call->callbacktype, G_CALLBACK(gtk_server_callback), (gpointer*)List_Sigs->data);
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    SIGNALCONNECT(widget, call->callbacktype, gtk_server_callback, List_Sigs->data);
     #elif GTK_SERVER_XF
     if(isalpha(call->callbacktype[0]))
     {

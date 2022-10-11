@@ -494,6 +494,7 @@
 *               . When compiling with OpenSSL3: enable legacy servers by default
 *               . Fixed severe bugs in parsing arguments when in library mode
 *               . Debug panel now also is available for GTK1
+*               . Code cleaning at various places
 *
 *************************************************************************************************************************************************/
 
@@ -1228,7 +1229,7 @@ void *search_and_open_lib(char *name)
     #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
     if(handle) { *(void**)(&check_gtk_version) = (void*)FROMLIB(handle, "gtk_check_version"); }
     #endif
- 
+
     #if GTK_SERVER_GTK1x
     if(check_gtk_version && check_gtk_version(1, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
     #elif GTK_SERVER_GTK2x
@@ -1268,7 +1269,6 @@ usleep(100);
 
 /* Delete file silently */
 if (!(gtkserver.behave & 2)) unlink(gtkserver.fifo);
-
 }
 
 void remove_queue(void)

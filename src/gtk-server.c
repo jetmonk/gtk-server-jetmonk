@@ -496,6 +496,10 @@
 *               . Debug panel now also is available for GTK1
 *               . Code cleaning at various places
 *
+* CHANGES GTK-SERVER 2.4.7
+* ------------------------
+*               . Fixed bug in PTR_STRING and PTR_BASE64 (thanks srolls)
+*
 *************************************************************************************************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -611,7 +615,7 @@
 #define GTK_SERVER_NONE 0
 
 /* Define GTK-server version - macro 'VERSION' also used by FFI on some platforms */
-#define GTK_SERVER_VERSION "2.4.6"
+#define GTK_SERVER_VERSION "2.4.7"
 
 /* Define backlog for tcp-connections */
 #define BACKLOG 4
@@ -781,7 +785,7 @@ typedef union {
     short		*p_hvalue;
     float		*p_fvalue;
     double		*p_dvalue;
-    char		*p_svalue;
+    char		**p_svalue;
     #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
     GtkObject	*p_wvalue;
     #elif GTK_SERVER_GTK3x
@@ -4970,32 +4974,32 @@ if (inputdata != NULL) {
 			str_address[i] = (char*)(atol(arg));
 			#ifdef GTK_SERVER_FFI
 			argtypes[i] = &ffi_type_pointer;
-			theargs[i].p_svalue = str_address[i];		/* Assign real variable address */
+			theargs[i].p_svalue = &str_address[i];		/* Assign real variable address */
 			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_FFCALL
-			av_ptr(funclist, char*, str_address[i]);
+			av_ptr(funclist, char**, &str_address[i]);
 			#elif GTK_SERVER_CINV
 			strcat(argtypes, "p");
-			theargs[i].p_svalue = str_address[i];		/* Assign real variable address */
+			theargs[i].p_svalue = &str_address[i];		/* Assign real variable address */
 			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_DYNCALL
-			dcArgPointer(vm, str_address[i]);
+			dcArgPointer(vm, &str_address[i]);
 			#endif
 		    }
 		    else if (!strcmp(Call_Found->args[i], "PTR_BASE64")) {
 			str_address[i] = (char*)(calloc(PTR_BASE64, 1));
 			#ifdef GTK_SERVER_FFI
 			argtypes[i] = &ffi_type_pointer;
-			theargs[i].p_svalue = str_address[i];		/* Assign real variable address */
+			theargs[i].p_svalue = &str_address[i];		/* Assign real variable address */
 			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_FFCALL
-			av_ptr(funclist, char*, str_address[i]);
+			av_ptr(funclist, char**, &str_address[i]);
 			#elif GTK_SERVER_CINV
 			strcat(argtypes, "p");
-			theargs[i].p_svalue = str_address[i];		/* Assign real variable address */
+			theargs[i].p_svalue = &str_address[i];		/* Assign real variable address */
 			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_DYNCALL
-			dcArgPointer(vm, str_address[i]);
+			dcArgPointer(vm, &str_address[i]);
 			#endif
                     }
                     else {

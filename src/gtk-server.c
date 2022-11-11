@@ -904,13 +904,6 @@ struct msg_buf {
 };
 
 typedef struct wid_sig {
-    #if GTK1 || GTK2
-    GtkWidget* widget;
-    #elif GTK_SERVER_XF
-    FL_OBJECT *widget;
-    #elif GTK_SERVER_MOTIF
-    Widget widget;
-    #endif
     char* data;
     struct wid_sig *next;
 } ASSOC;

@@ -499,6 +499,7 @@
 * CHANGES GTK-SERVER 2.4.7
 * ------------------------
 *               . Fixed bug in PTR_STRING and PTR_BASE64 (thanks srolls)
+*               . Fixed bug in emitting signals by gtk_server_timeout (thanks jfw)
 *
 *************************************************************************************************************************************************/
 
@@ -3313,9 +3314,11 @@ return( encoded );
 static gint gtk_server_timer(TIMEOUT *data)
 {
 #ifdef GTK_SERVER_GTK1x
-gtk_signal_emit_by_name(GTK_OBJECT((GtkWidget*)data->widget), data->signal);
+gboolean result = FALSE;
+gtk_signal_emit_by_name(GTK_OBJECT((GtkWidget*)data->widget), data->signal, GTK_OBJECT((GtkWidget*)data->widget), &result);
 #elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-g_signal_emit_by_name(G_OBJECT(data->widget), data->signal);
+gboolean result = FALSE;
+g_signal_emit_by_name(G_OBJECT(data->widget), data->signal, G_OBJECT(data->widget), &result);
 #elif GTK_SERVER_MOTIF
 XtCallCallbacks((Widget)data->widget, data->signal, data->signal);
 #endif
@@ -4119,7 +4122,7 @@ if (inputdata != NULL) {
 	    else g_signal_connect(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_scroll_callback), (gpointer)List_Sigs->data);
 	}
 	else {
-	    type = G_OBJECT_TYPE((GtkWidget*)(atol(widget)));
+	    type = G_OBJECT_TYPE((GtkObject*)(atol(widget)));
 	    signal_id = g_signal_lookup(signal, type);
 	    if (signal_id == 0) Print_Error("\nERROR: Cannot find signal %s in GTK_SERVER_CONNECT!", 1, signal);
 	    g_signal_query(signal_id, &query);

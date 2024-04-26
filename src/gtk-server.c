@@ -7,7 +7,7 @@
 * Please read the documentation on how to use this program.
 * The CREDITS file lists all people who have helped improving the GTK-server.
 *
-* Original idea and design by Peter van Eerten, September 2003 - June 2019
+* Original idea and design by Peter van Eerten, September 2003 - November 2022
 * Mail: peter@gtk-server.org
 *
 * This source has become a little bit messy. What started as a quick hack,
@@ -500,6 +500,8 @@
 * ------------------------
 *               . Fixed bug in PTR_STRING and PTR_BASE64 (thanks srolls)
 *               . Fixed bug in emitting signals by gtk_server_timeout (thanks jfw)
+*               . Fixed compile issue in Ubuntu 24.04 (thanks jfw)
+*               . Added support for GTK4               
 *
 *************************************************************************************************************************************************/
 
@@ -515,11 +517,16 @@
 #include <slang.h>
 #endif
 
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 #include <gtk/gtk.h>
 #endif
 
-#ifdef GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK4x
+#define GTK_WINDOW_TOPLEVEL
+#define gtk_window_set_position ;
+#define GTK_WIN_POS_CENTER 0
+#endif
+#if GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 #define gtk_exit exit
 #define GTK_OBJECT G_OBJECT
 #define GtkObject GObject
@@ -662,7 +669,7 @@ struct stat sb;
 
 #ifdef GTK_SERVER_GTK1x
 #define SIGNALCONNECT(x, y, z, a) gtk_signal_connect(GTK_OBJECT(x), y, GTK_SIGNAL_FUNC(z), (gpointer*)a)
-#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 #define SIGNALCONNECT(x, y, z, a) g_signal_connect(GTK_OBJECT(x), y, G_CALLBACK(z), (gpointer*)a)
 #endif
 
@@ -770,7 +777,7 @@ typedef union {
     char		*pvalue;
     #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
     GtkObject *wvalue;
-    #elif  GTK_SERVER_GTK3x
+    #elif  GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     GtkWidget *wvalue;
     #elif GTK_SERVER_XF
     FL_OBJECT *wvalue;
@@ -789,7 +796,7 @@ typedef union {
     char		**p_svalue;
     #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
     GtkObject	*p_wvalue;
-    #elif GTK_SERVER_GTK3x
+    #elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     GtkWidget	*p_wvalue;
     #elif GTK_SERVER_XF
     FL_OBJECT	*p_wvalue;
@@ -809,7 +816,7 @@ typedef struct {
 
 /* Define current 'callbacked' object */
 struct callback {
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     GtkWidget *object;
     int button;
     #elif GTK_SERVER_XF
@@ -838,8 +845,13 @@ struct callback {
     char* t5;
     char* t6;
     char* t7;
+#if GTK_SERVER_GTK4x
+    double mousex;
+    double mousey;
+#else
     int mousex;
     int mousey;
+#endif
     int key;
     int key_state;
     int scroll;
@@ -921,9 +933,14 @@ double double_address[MAX_ARGS];
 char *str_address[MAX_ARGS];
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 GtkObject *obj_address[MAX_ARGS];
-#elif GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *obj_address[MAX_ARGS];
-#if GTK_MINOR_VERSION<20
+#if GTK_SERVER_GTK4x
+#define DEV_MANAGER do { \
+    GdkSeat *device_manager = gdk_display_get_default_seat(gtk_widget_get_display(widget)); \
+    gdk_surface_get_device_position(gdk_surface_new_toplevel(gtk_widget_get_display(widget)), gdk_seat_get_pointer(device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
+} while(0)
+#elif GTK_MINOR_VERSION<20
 #define DEV_MANAGER do { \
     GdkDeviceManager *device_manager = gdk_display_get_device_manager(gdk_window_get_display(gtk_widget_get_window(widget))); \
     gdk_window_get_device_position(gtk_widget_get_window(widget), gdk_device_manager_get_client_pointer (device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
@@ -944,10 +961,10 @@ void *obj_address[MAX_ARGS];
 #endif
 
 /* Debug panel variables for both standalone and lib version of GTK-server */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *debug_view;
 #endif
-#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkTextBuffer *debug_buffer;
 GtkTextIter debug_iter;
 #elif GTK_SERVER_XF
@@ -957,12 +974,12 @@ FL_OBJECT *debug_view;
 char *motif_buf;
 Widget debug_view;
 #endif
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 long debug_step = 0, debug_run = 0;
 #endif
 
 /* Declare callback routines */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 void gtk_server_callback_extra2(GtkWidget *widget, gpointer *data1);
 void gtk_server_callback_extra3(GtkWidget *widget, gpointer *data1, gpointer *data2);
 void gtk_server_callback_extra4(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3);
@@ -997,7 +1014,7 @@ GtkCallback gtk_server_callbacks[] = {
     GTK_SIGNAL_FUNC(gtk_server_callback_extra7_bool),
     GTK_SIGNAL_FUNC(gtk_server_callback_extra8_bool)
 };
-#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GCallback gtk_server_callbacks[] = {
     G_CALLBACK(gtk_server_callback_extra2),
     G_CALLBACK(gtk_server_callback_extra3),
@@ -1184,7 +1201,7 @@ void *search_and_open_lib(char *name)
     int len, j;
     char *buf;
     char suffix[5];
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     char* (*check_gtk_version)(int, int, int) = NULL;
     #endif
 
@@ -1224,7 +1241,7 @@ void *search_and_open_lib(char *name)
 	    free(buf);
 	}
     }
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     if(handle) { *(void**)(&check_gtk_version) = (void*)FROMLIB(handle, "gtk_check_version"); }
     #endif
 
@@ -1234,6 +1251,8 @@ void *search_and_open_lib(char *name)
     if(check_gtk_version && check_gtk_version(2, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
     #elif GTK_SERVER_GTK3x
     if(check_gtk_version && check_gtk_version(3, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
+    #elif GTK_SERVER_GTK4x
+    if(check_gtk_version && check_gtk_version(4, 0, 0) != NULL) { CLOSELIB(handle); handle = NULL; }
     #endif
 
     return(handle);
@@ -1292,7 +1311,15 @@ va_list args;
 char data[MAX_LEN] = { 0 };
 
 #ifdef GTK_SERVER_UNIX
-    #if defined(GTK_SERVER_GTK2x) || defined(GTK_SERVER_GTK3x)
+    #if GTK_SERVER_GTK4x
+	GtkWidget *dialog, *window;
+	window = gtk_window_new();
+        GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL;
+        dialog = gtk_message_dialog_new(GTK_WINDOW(window), flags, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "%s", data);
+	gtk_window_set_title(GTK_WINDOW(dialog), "GTK-server Error!");
+        g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
+	gtk_widget_show(dialog);
+    #elif defined(GTK_SERVER_GTK2x) || defined(GTK_SERVER_GTK3x)
 	GtkWidget *dialog, *window;
         /* Read arguments incoming in functionheader */
         va_start(args, no);
@@ -1668,7 +1695,7 @@ return (char *) strncpy (new, s, n);
 /*************************************************************************************************/
 /* Used for debug panel */
 
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF
 void switch_flag_on(void* widget, long *data)
 {
     *data = 1;
@@ -1733,7 +1760,7 @@ if (data->reason == XmCR_INPUT) {
 
 /*************************************************************************************************/
 
-#elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 void gtk_server_callback(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3, gpointer *data4, gpointer *data5, gpointer *data6, gpointer *data7)
 {
 /* Get mouse stuff */
@@ -1767,7 +1794,11 @@ Current_Object.text = NULL;
 
 void gtk_button_callback(GtkWidget *widget, gpointer *data1, gpointer *data2)
 {
+#if GTK_SERVER_GTK4x
+GdkEvent *event;
+#else
 GdkEventButton *event;
+#endif
 
 /* Get mouse stuff */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
@@ -1775,8 +1806,14 @@ gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.m
 #else
 DEV_MANAGER;
 #endif
+
+#if GTK_SERVER_GTK4x
+event = (GdkEvent*)data1;
+Current_Object.button = gdk_button_event_get_button(event);
+#else
 event = (GdkEventButton*)data1;
 Current_Object.button = event->button;
+#endif
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
@@ -1784,7 +1821,11 @@ Current_Object.text = (char*)data2;
 
 gboolean gtk_button_callback_false(GtkWidget *widget, gpointer *data1, gpointer *data2)
 {
+#if GTK_SERVER_GTK4x
+GdkEvent *event;
+#else
 GdkEventButton *event;
+#endif
 
 /* Get mouse stuff */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
@@ -1793,8 +1834,13 @@ gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.m
 DEV_MANAGER;
 #endif
 
+#if GTK_SERVER_GTK4x
+event = (GdkEvent*)data1;
+Current_Object.button = gdk_button_event_get_button(event);
+#else
 event = (GdkEventButton*)data1;
 Current_Object.button = event->button;
+#endif
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
@@ -1804,7 +1850,11 @@ return FALSE;
 
 void gtk_key_callback(GtkWidget *widget, gpointer *data1, gpointer *data2)
 {
+#if GTK_SERVER_GTK4x
+GdkEvent *event;
+#else
 GdkEventKey *event;
+#endif
 
 /* Get mouse stuff */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
@@ -1813,9 +1863,15 @@ gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.m
 DEV_MANAGER;
 #endif
 
+#if GTK_SERVER_GTK4x
+event = (GdkEvent*)data1;
+Current_Object.key = gdk_key_event_get_keyval(event);
+Current_Object.key_state = gdk_event_get_modifier_state(event);
+#else
 event = (GdkEventKey*)data1;
 Current_Object.key = event->keyval;
 Current_Object.key_state = event->state;
+#endif
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
@@ -1823,7 +1879,11 @@ Current_Object.text = (char*)data2;
 
 gboolean gtk_key_callback_false(GtkWidget *widget, gpointer *data1, gpointer *data2)
 {
+#if GTK_SERVER_GTK4x
+GdkEvent *event;
+#else
 GdkEventKey *event;
+#endif
 
 /* Get mouse stuff */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
@@ -1832,9 +1892,15 @@ gdk_window_get_pointer(widget->window, &Current_Object.mousex, &Current_Object.m
 DEV_MANAGER;
 #endif
 
+#if GTK_SERVER_GTK4x
+event = (GdkEvent*)data1;
+Current_Object.key = gdk_key_event_get_keyval(event);
+Current_Object.key_state = gdk_event_get_modifier_state(event);
+#else
 event = (GdkEventKey*)data1;
 Current_Object.key = event->keyval;
 Current_Object.key_state = event->state;
+#endif
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
@@ -1842,10 +1908,14 @@ Current_Object.text = (char*)data2;
 return FALSE;
 }
 
-#if defined(GTK_SERVER_GTK2x) || defined(GTK_SERVER_GTK3x)
+#if defined(GTK_SERVER_GTK2x) || defined(GTK_SERVER_GTK3x) || defined(GTK_SERVER_GTK4x)
 void gtk_scroll_callback(GtkWidget *widget, gpointer *data1, gpointer *data2)
 {
+#if GTK_SERVER_GTK4x
+GdkEvent *event;
+#else
 GdkEventScroll *scroll;
+#endif
 
 /* Get mouse stuff */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
@@ -1855,8 +1925,13 @@ DEV_MANAGER;
 #endif
 
 /* Check if we have a scroll button */
+#if GTK_SERVER_GTK4x
+event = (GdkEvent*)data1;
+Current_Object.scroll = gdk_scroll_event_get_direction(event);
+#else
 scroll = (GdkEventScroll*)data1;
 Current_Object.scroll = scroll->direction;
+#endif
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
@@ -1864,7 +1939,11 @@ Current_Object.text = (char*)data2;
 
 gboolean gtk_scroll_callback_false(GtkWidget *widget, gpointer *data1, gpointer *data2)
 {
+#if GTK_SERVER_GTK4x
+GdkEvent *event;
+#else
 GdkEventScroll *scroll;
+#endif
 
 /* Get mouse stuff */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
@@ -1874,8 +1953,13 @@ DEV_MANAGER;
 #endif
 
 /* Check if we have a scroll button */
+#if GTK_SERVER_GTK4x
+event = (GdkEvent*)data1;
+Current_Object.scroll = gdk_scroll_event_get_direction(event);
+#else
 scroll = (GdkEventScroll*)data1;
 Current_Object.scroll = scroll->direction;
+#endif
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
@@ -2493,7 +2577,7 @@ return Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.po
 /*************************************************************************************************/
 
 #ifdef GTK_SERVER_FFCALL
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     char *Widget_GUI(GtkObject *widget, CONFIG *call)
     {
     #elif GTK_SERVER_XF
@@ -2513,7 +2597,7 @@ char *ptrstr;
 #elif GTK_SERVER_DYNCALL
 char *Widget_GUI(void *func, CONFIG *call, DCCallVM* vm)
 {
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *widget;		/* Temporary widget holder */
 #elif GTK_SERVER_XF
 ENUM *Enum_Found;
@@ -2533,7 +2617,7 @@ dcFree(vm);
 char *Widget_GUI(FUNC_POINTER, CONFIG *call, ffi_type * argtypes[], void * argptr[])
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *widget;		/* Temporary widget holder */
 #elif GTK_SERVER_XF
 ENUM *Enum_Found;
@@ -2563,7 +2647,7 @@ else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
 char *Widget_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
 {
 CInvFunction *proto;
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *widget;		/* Temporary widget holder */
 #elif GTK_SERVER_XF
 ENUM *Enum_Found;
@@ -2596,7 +2680,7 @@ List_Sigs->data = strdup(call->callbacktype);
 /* Connect signals */
 if (strcmp(call->callbacktype, "NONE")) {
 
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     SIGNALCONNECT(widget, call->callbacktype, gtk_server_callback, List_Sigs->data);
     #elif GTK_SERVER_XF
     if(isalpha(call->callbacktype[0]))
@@ -3310,13 +3394,13 @@ return( encoded );
 
 /*************************************************************************************************/
 
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_MOTIF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_MOTIF
 static gint gtk_server_timer(TIMEOUT *data)
 {
 #ifdef GTK_SERVER_GTK1x
 gboolean result = FALSE;
 gtk_signal_emit_by_name(GTK_OBJECT((GtkWidget*)data->widget), data->signal, GTK_OBJECT((GtkWidget*)data->widget), &result);
-#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 gboolean result = FALSE;
 g_signal_emit_by_name(G_OBJECT(data->widget), data->signal, G_OBJECT(data->widget), &result);
 #elif GTK_SERVER_MOTIF
@@ -3379,11 +3463,11 @@ DCCallVM* vm = NULL;
 #ifdef GTK_SERVER_GTK1x
 GtkSignalQuery query;
 GtkType type;
-#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GSignalQuery query;
 GType type;
 #endif
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 unsigned int signal_id;
 TIMEOUT *data;
 GtkWidget *opaque; /* Needed for OPAQUE */
@@ -3403,7 +3487,7 @@ TYPE theargs[MAX_ARGS];			/* Contains the arguments sent by the client program *
 #elif GTK_SERVER_FFCALL
 av_alist funclist;
 char* string_return;
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     GtkObject* widget_return;
     #elif GTK_SERVER_XF
     FL_OBJECT* widget_return;
@@ -3450,6 +3534,8 @@ if (inputdata != NULL) {
 		if (!strcmp (arg, "WAIT") || !strcmp (arg, "wait") || !strcmp(arg, "1")) {
 		    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 		    gtk_main_iteration();
+                    #elif GTK_SERVER_GTK4x
+                    g_main_context_iteration(NULL, 1);
 		    #elif GTK_SERVER_XF
 		    Current_Object.object = fl_do_forms();
 		    Current_Object.state = (long)Current_Object.object;
@@ -3463,6 +3549,12 @@ if (inputdata != NULL) {
 		    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 		    while (gtk_events_pending()){
 			gtk_main_iteration();
+			/* Go out when a widget is recognized by GTK-server */
+			if ((long)Current_Object.state != GTK_SERVER_NONE) break;
+		    }
+                    #elif GTK_SERVER_GTK4x
+		    while (g_main_context_pending(NULL)){
+                        g_main_context_iteration(NULL, 0);
 			/* Go out when a widget is recognized by GTK-server */
 			if ((long)Current_Object.state != GTK_SERVER_NONE) break;
 		    }
@@ -3737,6 +3829,8 @@ if (inputdata != NULL) {
 	retstr = Print_Result("%s%sGTK2%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#elif GTK_SERVER_GTK3x
 	retstr = Print_Result("%s%sGTK3%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+	#elif GTK_SERVER_GTK4x
+	retstr = Print_Result("%s%sGTK4%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#elif GTK_SERVER_XF
 	retstr = Print_Result("%s%sXForms%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#elif GTK_SERVER_MOTIF
@@ -3814,6 +3908,8 @@ if (inputdata != NULL) {
 	#elif GTK_SERVER_GTK2x
 	gtk_exit(0);
 	#elif GTK_SERVER_GTK3x
+	gtk_exit(0);
+	#elif GTK_SERVER_GTK4x
 	gtk_exit(0);
 	#elif GTK_SERVER_XF
 	fl_finish();
@@ -4039,7 +4135,7 @@ if (inputdata != NULL) {
 	if ((signal = parse_data(list, ++item)) == NULL){
 	    Print_Error("%s", 1, "\nERROR: Cannot find signal type in GTK_SERVER_CONNECT!");
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_MOTIF
 	if ((arg = parse_data(list, ++item)) == NULL){
 	    Print_Error("%s", 1, "\nERROR: Cannot find response string in GTK_SERVER_CONNECT!");
 	}
@@ -4107,7 +4203,7 @@ if (inputdata != NULL) {
 	    if (i) gtk_signal_connect(GTK_OBJECT((GtkObject*)(atol(widget))), Trim_String(signal), GTK_SIGNAL_FUNC(gtk_server_callbacks[query.nparams+7]), (gpointer)List_Sigs->data);
 	    else gtk_signal_connect(GTK_OBJECT((GtkObject*)(atol(widget))), Trim_String(signal), GTK_SIGNAL_FUNC(gtk_server_callbacks[query.nparams]), (gpointer)List_Sigs->data);
 	}
-	#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+	#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 	if(!strncmp(Trim_String(signal), "button-press-event", 18) || !strncmp(Trim_String(signal), "button_press_event", 18) ||
 		!strncmp(Trim_String(signal), "button-release-event", 20) || !strncmp(Trim_String(signal), "button_release_event", 20)) {
 	    if (i) g_signal_connect(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_button_callback_false), (gpointer)List_Sigs->data);
@@ -4150,7 +4246,7 @@ if (inputdata != NULL) {
 		    break;
 		case 2: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, (int)Current_Object.button, gtkserver.post);
 		    break;
-		#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+		#if GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 		case 3: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, (int)Current_Object.scroll, gtkserver.post);
 		    break;
 		#endif
@@ -4159,7 +4255,7 @@ if (inputdata != NULL) {
 	    }
 	}
     }
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_MOTIF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_MOTIF
     /* Internal call to disconnect signals
 	GTK does not check the userdata, but the address where the userdata is stored.
     */
@@ -4190,7 +4286,7 @@ if (inputdata != NULL) {
 	    #ifdef GTK_SERVER_GTK1x
 	    gtk_signal_disconnect_by_data((GtkObject*)(atol(widget)), List_Sigs->data);
 	    i = 1;
-	    #elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+	    #elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 	    i = g_signal_handlers_disconnect_matched((GtkWidget*)(atol(widget)), G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, List_Sigs->data);
 	    #endif
 	    /* Check if a widget was disconnected? */
@@ -4215,7 +4311,7 @@ if (inputdata != NULL) {
 	data = (TIMEOUT*)atol(arg);
 	#ifdef GTK_SERVER_GTK1x
 	gtk_timeout_remove(data->id);
-	#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+	#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 	g_source_remove(data->id);
 	#elif GTK_SERVER_MOTIF
         XtRemoveTimeOut(data->id);
@@ -4246,6 +4342,8 @@ if (inputdata != NULL) {
 	data->id = g_timeout_add(atoi(arg), (GtkFunction)gtk_server_timer, (gpointer)data);
 	#elif GTK_SERVER_GTK3x
 	data->id = g_timeout_add(atoi(arg), (GSourceFunc)gtk_server_timer, (gpointer)data);
+	#elif GTK_SERVER_GTK4x
+	data->id = g_timeout_add(atoi(arg), (GSourceFunc)gtk_server_timer, (gpointer)data);
 	#elif GTK_SERVER_MOTIF
 	HASH_FIND_STR(str_protos, signal, Str_Found);
         if (Str_Found != NULL) {
@@ -4262,7 +4360,7 @@ if (inputdata != NULL) {
 	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.key_state, gtkserver.post);
     }
 #endif
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
     /* Call to capture incoming callback values from callback function */
     else if (!strcmp("gtk_server_callback_value", gtk_api_call)){
 	/* Yes, find the first argument */
@@ -4382,7 +4480,7 @@ if (inputdata != NULL) {
 	    if (i) gtk_signal_connect_after(GTK_OBJECT((GtkObject*)(atol(widget))), Trim_String(signal), GTK_SIGNAL_FUNC(gtk_server_callbacks[query.nparams+7]), (gpointer)List_Sigs->data);
 	    else gtk_signal_connect_after(GTK_OBJECT((GtkObject*)(atol(widget))), Trim_String(signal), GTK_SIGNAL_FUNC(gtk_server_callbacks[query.nparams]), (gpointer)List_Sigs->data);
 	}
-	#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+	#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 	if(!strncmp(Trim_String(signal), "button-press-event", 18) || !strncmp(Trim_String(signal), "button_press_event", 18) ||
 		!strncmp(Trim_String(signal), "button-release-event", 20) || !strncmp(Trim_String(signal), "button_release_event", 20)) {
 	    if (i) g_signal_connect_after(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_button_callback_false), (gpointer)List_Sigs->data);
@@ -4459,7 +4557,7 @@ if (inputdata != NULL) {
 	    /* Initialize FFCALL list */
 	    #ifdef GTK_SERVER_FFCALL
 	    if (!strcmp(Call_Found->returnvalue, "NONE") || !strcmp(Call_Found->returnvalue, "VOID")) av_start_void(funclist, *func);
-	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 	    else if (!strcmp(Call_Found->returnvalue, "WIDGET")) av_start_ptr(funclist, *func, GtkWidget*, &widget_return);
 	    #elif GTK_SERVER_XF
 	    else if (!strcmp(Call_Found->returnvalue, "WIDGET")) av_start_ptr(funclist, *func, FL_OBJECT*, &widget_return);
@@ -4617,7 +4715,7 @@ if (inputdata != NULL) {
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (Widget)(atol(arg)));
 			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (GtkObject*)(atol(arg)));
-			    #elif GTK_SERVER_GTK3x
+			    #elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (GtkWidget*)(atol(arg)));
 			    #else
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (void*)(atol(arg)));
@@ -4629,7 +4727,7 @@ if (inputdata != NULL) {
 			    av_ptr(funclist, FL_OBJECT*, (!strcmp(arg, "NULL") ? NULL : (FL_OBJECT*)(atol(arg))));
 			    #elif GTK_SERVER_MOTIF
 			    av_ptr(funclist, Widget, (!strcmp(arg, "NULL") ? NULL : (Widget)(atol(arg))));
-			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 			    av_ptr(funclist, GtkObject*, (!strcmp(arg, "NULL") ? NULL : (GtkObject*)(atol(arg))));
 			    #else
 			    av_ptr(funclist, void*, (!strcmp(arg, "NULL") ? NULL : (void*)(atol(arg))));
@@ -4641,7 +4739,7 @@ if (inputdata != NULL) {
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (Widget)(atol(arg)));
 			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (GtkObject*)(atol(arg)));
-			    #elif GTK_SERVER_GTK3x
+			    #elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (GtkWidget*)(atol(arg)));
 			    #else
 			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (void*)(atol(arg)));
@@ -4653,7 +4751,7 @@ if (inputdata != NULL) {
 			    dcArgPointer(vm, (!strcmp(arg, "NULL") ? NULL : (FL_OBJECT*)atol(arg)));
 			    #elif GTK_SERVER_MOTIF
 			    dcArgPointer(vm, (!strcmp(arg, "NULL") ? NULL : (Widget)atol(arg)));
-			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 			    dcArgPointer(vm, (!strcmp(arg, "NULL") ? NULL : (GtkObject*)atol(arg)));
 			    #else
 			    dcArgPointer(vm, (!strcmp(arg, "NULL") ? NULL : (void*)atol(arg)));
@@ -4937,7 +5035,7 @@ if (inputdata != NULL) {
 			obj_address[i] = (Widget)(atol(arg));
 			#elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 			obj_address[i] = (GtkObject*)(atol(arg));
-			#elif GTK_SERVER_GTK3x
+			#elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 			obj_address[i] = (GtkWidget*)(atol(arg));
 			#else
 			obj_address[i] = (void*)(atol(arg));
@@ -4953,7 +5051,7 @@ if (inputdata != NULL) {
 			    av_ptr(funclist, Widget, obj_address[i]);
 			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
 			    av_ptr(funclist, GtkObject*, obj_address[i]);
-			    #elif GTK_SERVER_GTK3x
+			    #elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 			    av_ptr(funclist, GtkWidget*, obj_address[i]);
 			    #else
 			    av_ptr(funclist, void*, obj_address[i]);
@@ -5524,6 +5622,8 @@ char *filename;
 /* Initialize GUI toolkits */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 gtk_init(NULL, NULL);
+#elif GTK_SERVER_GTK4x
+gtk_init();
 #elif GTK_SERVER_XF
 argv[0] = strdup("");
 fl_initialize(&argc, argv, "XForms", 0, 0);
@@ -5535,7 +5635,7 @@ gtkserver.toplevel = XtVaAppInitialize(&gtkserver.app, "Motif", NULL, 0, &argcc,
 #endif
 
 /* Needed for debug window */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *debug_window, *debug_scrolled, *debug_execute, *debug_close, *debug_next, *debug_pause, *debug_vbox, *debug_hbox;
 #elif GTK_SERVER_XF
 FL_FORM *debug_window;
@@ -5547,13 +5647,13 @@ XmFontList debug_font;
 #endif
 
 /* Define the debug window in different toolkits */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 debug_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 gtk_window_set_title(GTK_WINDOW(debug_window), "GTK-server Debugger");
 gtk_window_set_default_size(GTK_WINDOW(debug_window), 600, 300);
 #ifdef GTK_SERVER_GTK1x
 debug_view = gtk_text_new(NULL, NULL);
-#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 gtk_window_set_icon_name(GTK_WINDOW(debug_window), "gtk-preferences");
 debug_buffer = gtk_text_buffer_new(0);
 debug_view = gtk_text_view_new_with_buffer(debug_buffer);
@@ -5561,11 +5661,18 @@ gtk_text_view_set_editable(GTK_TEXT_VIEW(debug_view), 0);
 gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(debug_view), GTK_WRAP_NONE);
 gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(debug_view), 0);
 #endif
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 debug_scrolled = gtk_scrolled_window_new(0, 0);
 gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(debug_scrolled), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 gtk_container_add(GTK_CONTAINER(debug_scrolled), debug_view);
 gtk_container_set_border_width(GTK_CONTAINER(debug_scrolled), 5);
-#ifdef GTK_SERVER_GTK1x
+#elif GTK_SERVER_GTK4x
+debug_scrolled = gtk_scrolled_window_new();
+g_object_set(GTK_WIDGET(debug_scrolled), "child", GTK_WIDGET(debug_view), NULL);
+gtk_widget_set_hexpand(GTK_WIDGET(debug_scrolled), 1);
+gtk_widget_set_vexpand(GTK_WIDGET(debug_scrolled), 1);
+#endif
+#if GTK_SERVER_GTK1x
 debug_execute = gtk_button_new_with_label("Run");
 gtk_widget_set_usize(debug_execute, 60, 30);
 debug_close = gtk_button_new_with_label("Quit");
@@ -5594,7 +5701,20 @@ debug_pause = gtk_button_new_from_icon_name("media-playback-pause", GTK_ICON_SIZ
 gtk_button_set_label(GTK_BUTTON(debug_pause), "Pause");
 debug_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 debug_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+#elif GTK_SERVER_GTK4x
+debug_execute = gtk_button_new_from_icon_name("go-jump");
+gtk_button_set_label(GTK_BUTTON(debug_execute), "Run");
+debug_close = gtk_button_new_from_icon_name("process-stop");
+gtk_button_set_label(GTK_BUTTON(debug_close), "Quit");
+debug_next = gtk_button_new_from_icon_name("go-next");
+gtk_button_set_label(GTK_BUTTON(debug_next), "Step");
+debug_pause = gtk_button_new_from_icon_name("media-playback-pause");
+gtk_button_set_label(GTK_BUTTON(debug_pause), "Pause");
+debug_vbox = gtk_grid_new();
+debug_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+gtk_widget_set_hexpand(GTK_WIDGET(debug_hbox), 1);
 #endif
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 gtk_box_pack_start(GTK_BOX(debug_hbox), debug_close, 0, 0, 1);
 gtk_box_pack_end(GTK_BOX(debug_hbox), debug_pause, 0, 0, 1);
 gtk_box_pack_end(GTK_BOX(debug_hbox), debug_execute, 0, 0, 1);
@@ -5602,13 +5722,27 @@ gtk_box_pack_end(GTK_BOX(debug_hbox), debug_next, 0, 0, 1);
 gtk_box_pack_start(GTK_BOX(debug_vbox), debug_scrolled, 1, 1, 1);
 gtk_box_pack_start(GTK_BOX(debug_vbox), debug_hbox, 0, 0, 1);
 gtk_container_add(GTK_CONTAINER(debug_window), debug_vbox);
+SIGNALCONNECT(debug_window, "delete-event", gtk_widget_hide, NULL);
+#elif GTK_SERVER_GTK4x
+gtk_box_append(GTK_BOX(debug_hbox), debug_close);
+gtk_box_append(GTK_BOX(debug_hbox), debug_pause);
+gtk_box_append(GTK_BOX(debug_hbox), debug_execute);
+gtk_box_append(GTK_BOX(debug_hbox), debug_next);
+gtk_grid_attach(GTK_GRID(debug_vbox), debug_scrolled, 0, 0, 1, 1);
+gtk_grid_attach(GTK_GRID(debug_vbox), debug_hbox, 0, 1, 1, 1);
+g_object_set(GTK_WIDGET(debug_window), "child", GTK_WIDGET(debug_vbox), NULL);
+SIGNALCONNECT(debug_window, "close-request", G_CALLBACK(gtk_window_destroy), NULL);
+#endif
 SIGNALCONNECT(debug_pause, "clicked", switch_flag_off, &debug_run);
 SIGNALCONNECT(debug_execute, "clicked", switch_flag_on, &debug_run);
 SIGNALCONNECT(debug_next, "clicked", switch_flag_on, &debug_step);
 SIGNALCONNECT(debug_close, "clicked", exit, NULL);
-SIGNALCONNECT(debug_window, "delete-event", gtk_widget_hide_on_delete, NULL);
 
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 #define update_gui while(gtk_events_pending()) { gtk_main_iteration_do(0); }
+#elif GTK_SERVER_GTK4x
+#define update_gui while(g_main_context_pending(NULL)) { g_main_context_iteration(NULL, 0); }
+#endif
 
 #ifdef GTK_SERVER_GTK1x
 #define scroll_to_end(x, y, z) do { \
@@ -5733,7 +5867,7 @@ SSL *ssl = NULL;
 BIO *sbio;
 #endif
 
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 fd_set rfds;				/* Needed for file descriptor polling in case debug window is used */
 struct timeval tv;
 #endif
@@ -5746,7 +5880,7 @@ unsigned long len;
 unsigned int len;
 #endif
 /* SIGNAL struct for child processes */
-int curpid;				/* Needed for forking */
+int curpid = 0;				/* Needed for forking */
 int msgid;				/* Needed for message queues */
 struct my_msg_buf {
     long mtype;
@@ -5803,7 +5937,9 @@ if (argc < 2 || !strncmp(argv[1], "help", 4) || !strncmp(argv[1], "-help", 5)) {
     strcat(dialog_msg, "GTK 2.x ***");
     #elif GTK_SERVER_GTK3x
     strcat(dialog_msg, "GTK 3.x ***");
-	#else
+    #elif GTK_SERVER_GTK4x
+    strcat(dialog_msg, "GTK 4.x ***");
+    #else
     strcat(dialog_msg, "console");
     #endif
     strcat(dialog_msg, "\n\r\n\rUsage:\tgtk-server\t\t\t\tthis help \
@@ -5825,6 +5961,8 @@ if (argc < 2 || !strncmp(argv[1], "help", 4) || !strncmp(argv[1], "-help", 5)) {
     printf("GTK 2.x ");
     #elif GTK_SERVER_GTK3x
     printf("GTK 3.x ");
+    #elif GTK_SERVER_GTK4x
+    printf("GTK 4.x ");
     #elif GTK_SERVER_XF
     printf("XForms ");
     #elif GTK_SERVER_MOTIF
@@ -6017,6 +6155,8 @@ else {
 	else if (!strncmp(argv[i], "debug", 5) || !strncmp(argv[i], "-debug", 6)){ /* Show debug dialog with logging? */
             #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
             gtk_widget_show_all(debug_window);
+            #elif GTK_SERVER_GTK4x
+            gtk_widget_show(debug_window);
             #elif GTK_SERVER_XF
             fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
             #elif GTK_SERVER_MOTIF
@@ -6040,6 +6180,8 @@ int init_result = 0;
 /* Initialize GUI toolkits */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 gtk_init(NULL, NULL);
+#elif GTK_SERVER_GTK4x
+gtk_init();
 #elif GTK_SERVER_XF
 argv[0] = strdup("");
 fl_initialize(&argc, argv, "XForms", 0, 0);
@@ -6083,6 +6225,8 @@ if (!strncmp(Trim_String(user_data), "gtk_server_cfg", 14) || !strncmp(Trim_Stri
         else if (!strncmp(Trim_String(user_data), "debug", 5) || !strncmp(Trim_String(user_data), "-debug", 6)){  /* Show debug dialog with logging? */
             #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
             gtk_widget_show_all(debug_window);
+            #elif GTK_SERVER_GTK4x
+            gtk_widget_show(debug_window);
             #elif GTK_SERVER_XF
             fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
             #elif GTK_SERVER_MOTIF
@@ -6649,7 +6793,7 @@ if (gtkserver.mode == 1) {
     while (1) {
 
 	/* Debug window */
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) {
 	    /* Poll descriptor to see if data is available */
 	    while(debug_step == 0)
@@ -6697,7 +6841,7 @@ if (gtkserver.mode == 1) {
 	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
@@ -6708,7 +6852,7 @@ if (gtkserver.mode == 1) {
 	    fprintf(logfile, "SERVER: %s\n", retstr);
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
 	#endif
 
@@ -6758,7 +6902,7 @@ if (gtkserver.mode == 2) {
 	}
 
 	/* Debug window */
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) {
 	    /* Poll descriptor to see if data is available */
 	    while(debug_step == 0)
@@ -6809,7 +6953,7 @@ if (gtkserver.mode == 2) {
 	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
@@ -6820,7 +6964,7 @@ if (gtkserver.mode == 2) {
 	    fprintf(logfile, "SERVER: %s\n", retstr);
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
 	#endif
 
@@ -7059,7 +7203,6 @@ while (1){
 	    gtkserver.count_fork++;
 	}
     }
-    else curpid = 0;
     /* We are in the non-forked process or in the child process */
     if (!curpid){
 	/* Close the listener socket */
@@ -7072,7 +7215,7 @@ while (1){
 	while(1){
 
 	    /* Debug window */
-	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	    if (gtkserver.behave & 512) {
 		/* Poll descriptor to see if data is available */
 		while(debug_step == 0)
@@ -7119,7 +7262,7 @@ while (1){
 		fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
 		fflush(logfile);
 	    }
-	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	    if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	    #endif
 
@@ -7130,7 +7273,7 @@ while (1){
 		fprintf(logfile, "SERVER: %s\n", retstr);
 		fflush(logfile);
 	    }
-	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	    if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
 	    #endif
 
@@ -7272,7 +7415,7 @@ if (gtkserver.mode == 6) {
     while(1){
 
 	/* Debug window */
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) {
 	    /* Poll descriptor to see if data is available */
 	    while(debug_step == 0)
@@ -7326,7 +7469,7 @@ if (gtkserver.mode == 6) {
 	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
@@ -7337,7 +7480,7 @@ if (gtkserver.mode == 6) {
 	    fprintf(logfile, "SERVER: %s\n", retstr);
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
 	#endif
 
@@ -7424,7 +7567,7 @@ if (logfile != NULL){
 while (1){
 
     /* Debug window */
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
     if (gtkserver.behave & 512) {
 	/* Poll descriptor to see if data is available */
 	while(debug_step == 0)
@@ -7454,7 +7597,7 @@ while (1){
 	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
@@ -7465,7 +7608,7 @@ while (1){
 	    fprintf(logfile, "SERVER: %s\n", retstr);
 	    fflush(logfile);
 	}
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
 	#endif
 
@@ -7520,7 +7663,7 @@ while (1){
     numbytes = 0;
 
     /* Debug window */
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
     if (gtkserver.behave & 512) {
 	/* Poll message queue to see if data is available */
 	while(debug_step == 0)
@@ -7565,7 +7708,7 @@ while (1){
 	fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
 	fflush(logfile);
     }
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
     if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
     #endif
 
@@ -7576,7 +7719,7 @@ while (1){
 	fprintf(logfile, "SERVER: %s\n", retstr);
 	fflush(logfile);
     }
-    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
     if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
     #endif
 
@@ -7618,7 +7761,7 @@ return (init_result);
 /**************************************************************************************** GTK_SERVER_LIBRARY */
 #ifdef GTK_SERVER_LIBRARY
 
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 char *gtk (char *arg)
 #elif GTK_SERVER_XF
 char *xf (char *arg)
@@ -7658,7 +7801,7 @@ if (logfile != NULL) {
 }
 
 /* Debug window */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 if (gtkserver.behave & 512) {
     /* Poll GUI to see if data is available */
     while(debug_step == 0)
@@ -7684,7 +7827,7 @@ if (logfile != NULL){
 if (logfile != NULL) fclose(logfile);
 
 
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
 if (gtkserver.behave & 512) { scroll_to_end(debug_view, retstr, 1); }
 #endif
 
@@ -7761,7 +7904,7 @@ SLFST VISIO_SLFST[] = {
 
 #ifdef GTK_SERVER_KSH93
 /* Export for for Kornshell93 */
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 void b_gtk (int argc, char *argv[])
 #else
 void b_xf (int argc, char *argv[])

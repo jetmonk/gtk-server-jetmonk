@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 AC_PREREQ([2.71])
-AC_INIT([gtk-server],[2.4.6],[peter AT gtk-server DOT org])
+AC_INIT([gtk-server],[2.4.7],[peter AT gtk-server DOT org])
 AC_CONFIG_SRCDIR([gtk-server.c])
 AC_CONFIG_HEADERS([config.h])
 
@@ -141,40 +141,50 @@ fi
 AC_ARG_WITH(gtk1,
     [AS_HELP_STRING([--with-gtk1],[force compilation with GTK1.x (default: GUESS)])],
 	[GTK1_LIBS="`pkg-config --libs gtk+`"
-	GTK1_CFLAGS="`pkg-config --cflags gtk+`" gtk1x=yes gtk2x=no gtk3x=no xf=no motif=no console=no])
+	GTK1_CFLAGS="`pkg-config --cflags gtk+`" gtk1x=yes gtk2x=no gtk3x=no gtk4x=no xf=no motif=no console=no])
 
 # Check parameter: force compilation for GTK2?
 AC_ARG_WITH(gtk2,
     [AS_HELP_STRING([--with-gtk2],[force compilation with GTK2.x (default: GUESS)])],
 	[GTK2_LIBS="`pkg-config --libs gtk+-2.0`"
-	 GTK2_CFLAGS="`pkg-config --cflags gtk+-2.0`" gtk1x=no gtk2x=yes gtk3x=no xf=no motif=no console=no])
+	 GTK2_CFLAGS="`pkg-config --cflags gtk+-2.0`" gtk1x=no gtk2x=yes gtk3x=no gtk4x=no xf=no motif=no console=no])
 
 # Check parameter: force compilation for GTK3?
 AC_ARG_WITH(gtk3,
     [AS_HELP_STRING([--with-gtk3],[force compilation with GTK3.x (default: GUESS)])],
 	[GTK3_LIBS="`pkg-config --libs gtk+-3.0`"
-	 GTK3_CFLAGS="`pkg-config --cflags gtk+-3.0`" gtk1x=no gtk2x=no gtk3x=yes xf=no motif=no console=no])
+	 GTK3_CFLAGS="`pkg-config --cflags gtk+-3.0`" gtk1x=no gtk2x=no gtk3x=yes gtk4x=no xf=no motif=no console=no])
+
+# Check parameter: force compilation for GTK4?
+AC_ARG_WITH(gtk4,
+    [AS_HELP_STRING([--with-gtk4],[force compilation with GTK4.x (default: GUESS)])],
+	[GTK4_LIBS="`pkg-config --libs gtk4`"
+	 GTK4_CFLAGS="`pkg-config --cflags gtk4`" gtk1x=no gtk2x=no gtk3x=no gtk4x=yes xf=no motif=no console=no])
 
 # Check parameter: force compilation for XForms?
 AC_ARG_WITH(xforms,
     [AS_HELP_STRING([--with-xforms],[force compilation with XForms (default: GUESS)])],
 	[XF_LIBS="-lXext -lX11 -lXpm -lGL -lforms -lm"
-	 XF_CFLAGS="-I/usr/X11R6/include/X11" gtk1x=no gtk2x=no gtk3x=no xf=yes motif=no console=no])
+	 XF_CFLAGS="-I/usr/X11R6/include/X11" gtk1x=no gtk2x=no gtk3x=no gtk4x=no xf=yes motif=no console=no])
 
 # Check parameter: force compilation for Motif?
 AC_ARG_WITH(motif,
     [AS_HELP_STRING([--with-motif],[force compilation with Motif (default: GUESS)])],
 	[MOTIF_LIBS="-lXm -lXt -lX11 -lm"
-	 MOTIF_CFLAGS="-I/usr/X11R6/include/X11" gtk1x=no gtk2x=no gtk3x=no xf=no motif=yes console=no])
+	 MOTIF_CFLAGS="-I/usr/X11R6/include/X11" gtk1x=no gtk2x=no gtk3x=no gtk4x=no xf=no motif=yes console=no])
 
 # Check parameter: force compilation for console?
 AC_ARG_WITH(console,
     [AS_HELP_STRING([--with-console],[force compilation for console (default: GUESS)])],
-    [gtk1x=no gtk2x=no gtk3x=no xf=no console=yes])
+    [gtk1x=no gtk2x=no gtk3x=no gtk4x=no xf=no console=yes])
 
 # Guess all toolkits if none was provided
-if test "$console" != yes -a "$motif" != yes -a "$xf" != yes -a "$gtk1x" != yes -a "$gtk2x" != yes -a "$gtk3x" != yes
+if test "$console" != yes -a "$motif" != yes -a "$xf" != yes -a "$gtk1x" != yes -a "$gtk2x" != yes -a "$gtk3x" != yes -a "$gtk4x" != yes
 then
+    AC_CHECK_LIB([gtk-4], [gtk_init],
+	[GTK4_LIBS="`pkg-config --libs gtk4`"
+	GTK4_CFLAGS="`pkg-config --cflags gtk4`" gtk4x=yes], [], [])
+
     AC_CHECK_LIB([gtk-3], [gtk_init],
 	[GTK3_LIBS="`pkg-config --libs gtk+-3.0`"
 	GTK3_CFLAGS="`pkg-config --cflags gtk+-3.0`" gtk3x=yes], [], [])
@@ -245,6 +255,14 @@ if test "$gtk3x" = yes; then
     SOTARGET="${SOTARGET} libgtk-server-gtk3.so"
     LINK="gtk-server-gtk3"
     SOLINK="libgtk-server-gtk3.so"
+fi
+if test "$gtk4x" = yes; then
+    AC_SUBST(GTK4_CFLAGS)
+    AC_SUBST(GTK4_LIBS)
+    TARGET="${TARGET} gtk-server-gtk4"
+    SOTARGET="${SOTARGET} libgtk-server-gtk4.so"
+    LINK="gtk-server-gtk4"
+    SOLINK="libgtk-server-gtk4.so"
 fi
 AC_SUBST(LINK)
 AC_SUBST(SOLINK)
@@ -423,6 +441,13 @@ then
     echo " - Use GTK 3.x backend: YES"
 else
     echo " - Use GTK 3.x backend: NO"
+fi
+
+if test "$gtk4x" = yes
+then
+    echo " - Use GTK 4.x backend: YES"
+else
+    echo " - Use GTK 4.x backend: NO"
 fi
 
 if test "$xf" = yes

@@ -16,11 +16,13 @@ TARGET =	@TARGET@
 SOTARGET =	@SOTARGET@
 DEFAULT = 	@DEFAULT@
 MACOSX =	@MACOSX@
+GTK4_CFLAGS =   @GTK4_CFLAGS@
 GTK3_CFLAGS =   @GTK3_CFLAGS@
 GTK2_CFLAGS =   @GTK2_CFLAGS@
 GTK1_CFLAGS =   @GTK1_CFLAGS@
 XF_CFLAGS =     @XF_CFLAGS@
 MOTIF_CFLAGS =  @MOTIF_CFLAGS@
+GTK4_LIBS =     @GTK4_LIBS@
 GTK3_LIBS =     @GTK3_LIBS@
 GTK2_LIBS =     @GTK2_LIBS@
 GTK1_LIBS =     @GTK1_LIBS@
@@ -31,6 +33,13 @@ LINK =          @LINK@
 SOLINK =        @SOLINK@
 
 all : clean $(SOTARGET) $(TARGET)
+
+gtk-server-gtk4 : gtk-server.c
+	$(CC) -DGTK_SERVER_GTK4x $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(GTK4_LIBS) $(SSLFLAGS) $(LDFLAGS)
+	$(STRIP) $@
+
+libgtk-server-gtk4.so : gtk-server.c
+	$(CC) -DGTK_SERVER_GTK4x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(GTK4_LIBS) $(LDFLAGS)
 
 gtk-server-gtk3 : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK3x $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS)

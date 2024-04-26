@@ -938,7 +938,9 @@ GtkWidget *obj_address[MAX_ARGS];
 #if GTK_SERVER_GTK4x
 #define DEV_MANAGER do { \
     GdkSeat *device_manager = gdk_display_get_default_seat(gtk_widget_get_display(widget)); \
-    gdk_surface_get_device_position(gdk_surface_new_toplevel(gtk_widget_get_display(widget)), gdk_seat_get_pointer(device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
+    GdkSurface *surface = gdk_surface_new_toplevel(gtk_widget_get_display(widget)); \
+    gdk_surface_get_device_position(surface, gdk_seat_get_pointer(device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
+    gdk_surface_destroy(surface); \
 } while(0)
 #elif GTK_MINOR_VERSION<20
 #define DEV_MANAGER do { \

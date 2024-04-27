@@ -21,8 +21,9 @@ gtk "gtk_server_redefine gtk_box_append NONE NONE 2 WIDGET WIDGET"
 gtk "gtk_server_redefine gtk_widget_set_hexpand NONE NONE 2 WIDGET INT"
 gtk "gtk_server_redefine gtk_widget_set_vexpand NONE NONE 2 WIDGET INT"
 gtk "gtk_server_redefine gtk_video_new NONE WIDGET 0"
-gtk "gtk_server_redefine gtk_video_set_autoplay NONE NONE 2 WIDGET INT"
 gtk "gtk_server_redefine gtk_video_set_filename NONE NONE 2 WIDGET STRING"
+gtk "gtk_server_redefine gtk_video_get_media_stream NONE WIDGET 1 WIDGET"
+gtk "gtk_server_redefine gtk_media_stream_play NONE NONE 1 WIDGET"
 gtk "gtk_server_redefine gtk_file_chooser_get_file NONE POINTER 1 WIDGET"
 gtk "gtk_server_redefine g_file_get_path NONE STRING 1 POINTER"
 gtk "gtk_server_redefine g_object_set NONE NONE 4 WIDGET STRING WIDGET INT"
@@ -33,7 +34,6 @@ gtk "gtk_window_set_title $WINDOW 'GTK4 Video Player'"
 def BOX1 "gtk_box_new 1 5"
 gtk "g_object_set $WINDOW child $BOX1 0"
 def VIDEO "gtk_video_new"
-gtk "gtk_video_set_autoplay $VIDEO 1"
 gtk "gtk_widget_set_size_request $VIDEO 600 400"
 gtk "gtk_widget_set_hexpand $VIDEO 1"
 gtk "gtk_widget_set_vexpand $VIDEO 1"
@@ -67,6 +67,8 @@ do
             gtk "gtk_widget_hide $FILE"
             def SELECT "gtk_file_chooser_get_file $CHOOSER"
             def NAME "g_file_get_path $SELECT"
-            gtk "gtk_video_set_filename $VIDEO \"$NAME\"";;
+            gtk "gtk_video_set_filename $VIDEO \"$NAME\""
+            def STREAM "gtk_video_get_media_stream $VIDEO"
+            gtk "gtk_media_stream_play $STREAM";;
     esac
 done

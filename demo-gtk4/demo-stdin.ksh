@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/usr/bin/env ksh
 #
 # Demo with GTK4
 #

@@ -7,7 +7,7 @@
 * Please read the documentation on how to use this program.
 * The CREDITS file lists all people who have helped improving the GTK-server.
 *
-* Original idea and design by Peter van Eerten, September 2003 - April 2024
+* Original idea and design by Peter van Eerten, September 2003 - October 2024
 * Mail: peter@gtk-server.org
 *
 * This source has become a little bit messy. What started as a quick hack,
@@ -502,6 +502,7 @@
 *               . Fixed bug in emitting signals by gtk_server_timeout (thanks jfw)
 *               . Fixed compile issue in Ubuntu 24.04 (thanks jfw)
 *               . Added support for GTK4               
+*		. Upgraded to uthash 2.3.0 (https://troydhanson.github.io)
 *
 *************************************************************************************************************************************************/
 

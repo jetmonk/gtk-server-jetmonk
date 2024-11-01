@@ -23,8 +23,9 @@ to run the './configure'-script with the following option:
 
 ./configure --with-gtk3
 
-Similarly, compilation with GTK2 or GTK1 can be forced as well:
+Similarly, compilation with GTK4, GTK2 or GTK1 can be forced as well:
 
+./configure --with-gtk4
 ./configure --with-gtk2
 ./configure --with-gtk1
 

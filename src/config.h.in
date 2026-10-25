@@ -37,9 +37,6 @@
 /* Define FFCALL to use FFCALL */
 #undef GTK_SERVER_FFCALL
 
-/* Define CINV to use C/Invoke */
-#undef GTK_SERVER_CINV
-
 /* Define DYNCALL to use Dyncall */
 #undef GTK_SERVER_DYNCALL
 

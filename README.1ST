@@ -82,7 +82,7 @@ Foreign Function Interfaces
 ----------------------------------------------------------
 
 Starting from GTK-server 2.0, a Foreign Function interface
-is required. Four interfaces are supported (but you only
+is required. Three interfaces are supported (but you only
 need one of these for the GTK-server).
 
 
@@ -97,17 +97,7 @@ The latest package can also be obtained from
 www.gtk-server.org in the section 'Download'.
 
 
-2) C/Invoke (CINV)
-
-Homepage of C/Invoke:
-
-http://www.nongnu.org/cinvoke/
-
-The latest package can also be obtained from
-www.gtk-server.org in the section 'Download'.
-
-
-3) Foreign Function Interface library (FFI)
+2) Foreign Function Interface library (FFI)
 
 The FFI library has been ported to many platforms. It is
 part of GCC since version 3.x and should be available
@@ -120,7 +110,7 @@ The latest package can also be obtained from
 www.gtk-server.org in the section 'Download'.
 
 
-4) DynCall (DYNCALL)
+3) DynCall (DYNCALL)
 
 Homepage of DynCall:
 
@@ -130,7 +120,7 @@ The latest package can also be obtained from
 www.gtk-server.org in the section 'Download'.
 
 
-First install FFI, FFCALL, CINV or DYNCALL, after which
+First install FFI, FFCALL or DYNCALL, after which
 compilation of the GTK-server should be successfull.
 
 ----------------------------------------------------------

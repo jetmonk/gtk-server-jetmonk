@@ -276,19 +276,19 @@ fi
 # Check parameter: force compilation for which Foreign Func Interface?
 AC_ARG_WITH(ffi,
     [AS_HELP_STRING([--with-ffi],[force compilation with libffi (default: GUESS)])],
-	[AC_DEFINE_UNQUOTED(GTK_SERVER_FFI) LDFLAGS="${LDFLAGS} -lffi -ldl" ffi=yes ffcall=no cinv=no dyncall=no])
+	[AC_DEFINE_UNQUOTED(GTK_SERVER_FFI) LDFLAGS="${LDFLAGS} -lffi -ldl" ffi=yes ffcall=no dyncall=no])
 
 AC_ARG_WITH(ffcall,
     [AS_HELP_STRING([--with-ffcall],[force compilation with libffcall (default: GUESS)])],
-	[AC_DEFINE_UNQUOTED(GTK_SERVER_FFCALL) LDFLAGS="${LDFLAGS} -lavcall -ldl" ffi=no ffcall=yes cinv=no dyncall=no])
+	[AC_DEFINE_UNQUOTED(GTK_SERVER_FFCALL) LDFLAGS="${LDFLAGS} -lavcall -ldl" ffi=no ffcall=yes dyncall=no])
 
-AC_ARG_WITH(cinv,
-    [AS_HELP_STRING([--with-cinv],[force compilation with c/invoke (default: GUESS)])],
-	[AC_DEFINE_UNQUOTED(GTK_SERVER_CINV) LDFLAGS="${LDFLAGS} -lcinvoke -ldl" ffi=no ffcall=no cinv=yes dyncall=no])
+# C/Invoke support has been removed
+AC_ARG_WITH(cinv, [],
+	[AC_MSG_ERROR([C/Invoke is not supported anymore - please use libffi, ffcall or dyncall. See 'README.1ST' for details.])])
 
 AC_ARG_WITH(dyncall,
     [AS_HELP_STRING([--with-dyncall],[force compilation with dyncall (default: GUESS)])],
-	[AC_DEFINE_UNQUOTED(GTK_SERVER_DYNCALL) LDFLAGS="${LDFLAGS} -ldynload_s -ldyncall_s -ldl" ffi=no ffcall=no cinv=no dyncall=yes])
+	[AC_DEFINE_UNQUOTED(GTK_SERVER_DYNCALL) LDFLAGS="${LDFLAGS} -ldynload_s -ldyncall_s -ldl" ffi=no ffcall=no dyncall=yes])
 
 # GTK-server as generic shared object
 library=yes
@@ -375,13 +375,12 @@ if test "$GCC" = yes; then
 fi
 
 # Autodetect FFI if none was given
-if test "$ffi" != yes -a "$ffcall" != yes -a "$cinv" != yes -a "$dyncall" != yes
+if test "$ffi" != yes -a "$ffcall" != yes -a "$dyncall" != yes
 then
 AC_CHECK_HEADER(ffi.h, [AC_DEFINE_UNQUOTED(GTK_SERVER_FFI) LDFLAGS="${LDFLAGS} -lffi -ldl"] ffi=yes,
     [AC_CHECK_HEADER(avcall.h, [AC_DEFINE_UNQUOTED(GTK_SERVER_FFCALL) LDFLAGS="${LDFLAGS} -lavcall -ldl"]	ffcall=yes,
-	[AC_CHECK_HEADER(cinvoke.h, [AC_DEFINE_UNQUOTED(GTK_SERVER_CINV) LDFLAGS="${LDFLAGS} -lcinvoke -ldl"] cinv=yes,
-	    [AC_CHECK_HEADER(dyncall.h,	[AC_DEFINE_UNQUOTED(GTK_SERVER_DYNCALL) LDFLAGS="${LDFLAGS} -ldynload_s -ldyncall_s -ldl"] dyncall=yes,
-		    [AC_MSG_ERROR(Cannot compile - no foreign function headers found! Please check 'README.1ST' for details.)]) ]) ]) ])
+	[AC_CHECK_HEADER(dyncall.h,	[AC_DEFINE_UNQUOTED(GTK_SERVER_DYNCALL) LDFLAGS="${LDFLAGS} -ldynload_s -ldyncall_s -ldl"] dyncall=yes,
+	    [AC_MSG_ERROR(Cannot compile - no foreign function headers found! Please check 'README.1ST' for details.)]) ]) ])
 fi
 
 # Check CC, options for GCC/TCC
@@ -511,10 +510,6 @@ fi
 if test "$ffcall" = yes
 then
     echo "The GTK-server will be built with $CC using Foreign Function Calls (FFCALL)."
-fi
-if test "$cinv" = yes
-then
-    echo "The GTK-server will be built with $CC using C/Invoke (CINV)."
 fi
 if test "$dyncall" = yes
 then

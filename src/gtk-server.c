@@ -562,8 +562,6 @@
 #include <ffi.h>
 #elif GTK_SERVER_FFCALL
 #include <avcall.h>
-#elif GTK_SERVER_CINV
-#include <cinvoke.h>
 #elif GTK_SERVER_DYNCALL
 #include <dyncall.h>
 #include <dynload.h>
@@ -644,8 +642,6 @@ struct stat sb;
 /* Opening for different FF toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define OPENLIB(x) dlopen(x, RTLD_LAZY)
-#elif GTK_SERVER_CINV
-#define OPENLIB(x) cinv_library_create(cinv_ctx, x)
 #elif GTK_SERVER_DYNCALL
 #define OPENLIB(x) dlLoadLibrary(x)
 #endif
@@ -653,8 +649,6 @@ struct stat sb;
 /* Obtaining function for different FF toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define FROMLIB(x,y) dlsym(x,y)
-#elif GTK_SERVER_CINV
-#define FROMLIB(x,y) cinv_library_load_entrypoint(cinv_ctx, x, y)
 #elif GTK_SERVER_DYNCALL
 #define FROMLIB(x,y) dlFindSymbol(x, y)
 #endif
@@ -662,8 +656,6 @@ struct stat sb;
 /* Closing for different FF toolkits */
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
 #define CLOSELIB(x) dlclose(x)
-#elif GTK_SERVER_CINV
-#define CLOSELIB(x) cinv_library_delete(cinv_ctx, x)
 #elif GTK_SERVER_DYNCALL
 #define CLOSELIB(x) dlFreeLibrary(x)
 #endif
@@ -770,7 +762,7 @@ typedef struct alias_struct {
 /* Needed for hashtable */
 struct alias_struct *alias_protos = NULL;
 
-/* Define union for FFI and CINVOKE */
+/* Define union for FFI */
 typedef union {
     long		lvalue;
     int			ivalue;
@@ -1048,7 +1040,7 @@ static const char cd64[]="|$$$}rstuvwxyz{$$$$$$$>?@ABCDEFGHIJKLMNOPQRSTUVW$$$$$$
 int PTR_BASE64 = 0;
 
 /* Function prototypes */
-char *Call_Realize (char*, void*);
+char *Call_Realize (char*);
 char *base64_enc(char *arg, int len);
 
 #ifdef GTK_SERVER_LIBRARY
@@ -1081,13 +1073,8 @@ char *libs[MAX_LIBS];
     #elif GTK_SERVER_WIN32
     HINSTANCE handle[MAX_LIBS];
     #endif
-    void *cinv_ctx;
-#elif GTK_SERVER_CINV
-CInvContext *cinv_ctx;
-CInvLibrary *handle[MAX_LIBS];
 #elif GTK_SERVER_DYNCALL
 void *handle[MAX_LIBS];
-void *cinv_ctx;
 #endif
 
 /*************************************************************************************************/
@@ -1195,11 +1182,7 @@ return ++stream;
 /* If the library is not found, add a numeric suffix from 0-99 behind the soname. A larger range */
 /* slows down the GTK-server significantly. PvE. */
 
-#if GTK_SERVER_CINV
-CInvLibrary *search_and_open_lib(char *name, CInvContext *cinv_ctx)
-{
-    CInvLibrary* handle = NULL;
-#elif GTK_SERVER_FFI || GTK_SERVER_FFCALL || GTK_SERVER_DYNCALL
+#if   GTK_SERVER_FFI || GTK_SERVER_FFCALL || GTK_SERVER_DYNCALL
 void *search_and_open_lib(char *name)
 {
     void* handle = NULL;
@@ -2489,7 +2472,7 @@ strcat(command, num7);
 strcat(command, num8);
 
 /* Now invoke the macro */
-Call_Realize(command, cinv_ctx);
+Call_Realize(command);
 }
 
 /*************************************************************************************************/
@@ -2598,14 +2581,6 @@ if (Prep_Cif(&cif, call, &ffi_type_void, argtypes, argptr) == FFI_OK)
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
 
-#elif GTK_SERVER_CINV
-char *Void_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, NULL, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
 #endif
 
 /* Return positive response */
@@ -2685,25 +2660,6 @@ if (Prep_Cif(&cif, call, &ffi_type_pointer, argtypes, argptr) == FFI_OK)
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
 
-#elif GTK_SERVER_CINV
-char *Widget_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
-GtkWidget *widget;		/* Temporary widget holder */
-#elif GTK_SERVER_XF
-ENUM *Enum_Found;
-FL_OBJECT *widget;
-#elif GTK_SERVER_MOTIF
-STR *Str_Found;
-Widget widget;
-#else
-void *widget;
-#endif
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "p", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, &widget, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
 #endif
 
 /* Allocate memory to memorize attached signals - GTK memorizes the address instead of the userdata */
@@ -2794,15 +2750,6 @@ if (Prep_Cif(&cif, call, &ffi_type_pointer, argtypes, argptr) == FFI_OK)
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
 
-#elif GTK_SERVER_CINV
-char *Pointer_OBJ(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-void *pointer;
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "p", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, &pointer, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
 #endif
 
 /* Seeif there are pointer arguments */
@@ -2847,16 +2794,6 @@ if (Prep_Cif(&cif, call, &ffi_type_pointer, argtypes, argptr) == FFI_OK)
     #endif
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
-
-#elif GTK_SERVER_CINV
-char *String_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-char *result;				/* temp result holder */
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "p", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, &result, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
 
 #endif
 
@@ -2907,16 +2844,6 @@ if (Prep_Cif(&cif, call, &ffi_type_uint, argtypes, argptr) == FFI_OK)
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
 
-#elif GTK_SERVER_CINV
-char *Bool_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-int boolean;		/* Temporary bool holder */
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "i", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, &boolean, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
-
 #endif
 
 ptrstr = Return_Pointer_Args(call);
@@ -2963,16 +2890,6 @@ if (Prep_Cif(&cif, call, &ffi_type_uint, argtypes, argptr) == FFI_OK)
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
 
-#elif GTK_SERVER_CINV
-char *Int_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-unsigned int result;			/* Temporary result holder */
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "i", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, &result, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
-
 #endif
 
 ptrstr = Return_Pointer_Args(call);
@@ -3016,16 +2933,6 @@ if (Prep_Cif(&cif, call, &ffi_type_ulong, argtypes, argptr) == FFI_OK)
     #endif
 }
 else Print_Error ("%s", 1, "\nERROR: the FFI could not be initialized!");
-
-#elif GTK_SERVER_CINV
-char *Long_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx)
-{
-CInvFunction *proto;
-unsigned long result;			/* Temporary result holder */
-char *ptrstr;
-
-proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "l", argtypes);
-if (!cinv_function_invoke(cinv_ctx, proto, func, &result, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
 
 #endif
 
@@ -3104,26 +3011,6 @@ else {
     return Print_Result("%s%s%f%s%s", 5, gtkserver.pre, gtkserver.handle, dresult, ptrstr, gtkserver.post);
 }
 
-#elif GTK_SERVER_CINV
-char *Float_GUI(void *func, CONFIG *call, char argtypes[], void * argptr[], CInvContext* cinv_ctx, int type)
-{
-CInvFunction *proto;
-float fresult;			/* Temporary result holder */
-double dresult;
-char *ptrstr;
-
-ptrstr = Return_Pointer_Args(call);
-
-if (type == 1){
-    proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "f", argtypes);
-    if (!cinv_function_invoke(cinv_ctx, proto, func, &fresult, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
-    return Print_Result("%s%s%f%s%s", 5, gtkserver.pre, gtkserver.handle, fresult, ptrstr, gtkserver.post);
-}
-else {
-    proto = cinv_function_create(cinv_ctx, CINV_CC_DEFAULT, "d", argtypes);
-    if (!cinv_function_invoke(cinv_ctx, proto, func, &dresult, argptr)) Print_Error ("%s", 1, "\nERROR: C/Invoke failed!");
-    return Print_Result("%s%s%f%s%s", 5, gtkserver.pre, gtkserver.handle, dresult, ptrstr, gtkserver.post);
-}
 #endif
 }
 
@@ -3570,7 +3457,7 @@ return(texture);
 /*************************************************************************************************/
 /* This function has grown way to large. Sorry. :-) */
 
-char *Call_Realize (char *inputdata, void* cinv_ctx)
+char *Call_Realize (char *inputdata)
 {
 char *gtk_api_call;
 char *arg = NULL;			/* Temporary argument holders */
@@ -3660,11 +3547,6 @@ long long_return;
 float float_return;
 double double_return;
 void* void_return;
-#elif GTK_SERVER_CINV
-void *argvalues[MAX_ARGS];		/* Contains addresses of all arguments */
-TYPE theargs[MAX_ARGS];			/* Contains the arguments sent by the client program */
-char argtypes[MAX_ARGS];		/* Contains type construction */
-strcpy(argtypes, "");
 #endif
 
 if (inputdata != NULL) {
@@ -3974,8 +3856,6 @@ if (inputdata != NULL) {
 	retstr = Print_Result("%s%sFFI%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#elif GTK_SERVER_FFCALL
 	retstr = Print_Result("%s%sFFCALL%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
-	#elif GTK_SERVER_CINV
-	retstr = Print_Result("%s%sC/Invoke%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#elif GTK_SERVER_DYNCALL
 	retstr = Print_Result("%s%sDynCall%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#endif
@@ -4330,9 +4210,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_WIN32
 		handle[i] = LoadLibrary(arg);
 		#endif
-	    #elif GTK_SERVER_CINV
-		if ((cinv_ctx = cinv_context_create()) == NULL) Print_Error("%s", 1, "\nERROR: Cannot create C/Invoke context!\n");
-		handle[i] = search_and_open_lib(arg, cinv_ctx);
 	    #elif GTK_SERVER_DYNCALL
 		handle[i] = search_and_open_lib(arg);
 	    #endif
@@ -4864,10 +4741,6 @@ if (inputdata != NULL) {
 			    argvalues[i] = &theargs[i].ivalue;
 			    #elif GTK_SERVER_FFCALL
 			    av_int(funclist, Enum_Found->value);
-			    #elif GTK_SERVER_CINV
-			    strcat(argtypes, "i");
-			    theargs[i].ivalue = Enum_Found->value;
-			    argvalues[i] = &theargs[i].ivalue;
 			    #elif GTK_SERVER_DYNCALL
 			    dcArgInt(vm, Enum_Found->value);
 			    #endif
@@ -4880,10 +4753,6 @@ if (inputdata != NULL) {
 			    argvalues[i] = &theargs[i].ivalue;
 			    #elif GTK_SERVER_FFCALL
 			    av_int(funclist, (int)atoi(arg));
-			    #elif GTK_SERVER_CINV
-			    strcat(argtypes, "i");
-			    theargs[i].ivalue = (int)atoi(arg);
-			    argvalues[i] = &theargs[i].ivalue;
 			    #elif GTK_SERVER_DYNCALL
 			    dcArgInt(vm, (int)atoi(arg));
 			    #endif
@@ -4899,10 +4768,6 @@ if (inputdata != NULL) {
 			    argvalues[i] = &theargs[i].lvalue;
 			    #elif GTK_SERVER_FFCALL
 			    av_long(funclist, Enum_Found->value);
-			    #elif GTK_SERVER_CINV
-			    strcat(argtypes, "l");
-			    theargs[i].lvalue = Enum_Found->value;
-			    argvalues[i] = &theargs[i].lvalue;
 			    #elif GTK_SERVER_DYNCALL
 			    dcArgLong(vm, Enum_Found->value);
 			    #endif
@@ -4915,10 +4780,6 @@ if (inputdata != NULL) {
 			    argvalues[i] = &theargs[i].lvalue;
 			    #elif GTK_SERVER_FFCALL
 			    av_long(funclist, (long)atol(arg));
-			    #elif GTK_SERVER_CINV
-			    strcat(argtypes, "l");
-			    theargs[i].lvalue = (long)atol(arg);
-			    argvalues[i] = &theargs[i].lvalue;
 			    #elif GTK_SERVER_DYNCALL
 			    dcArgLong(vm, (long)atol(arg));
 			    #endif
@@ -4949,20 +4810,6 @@ if (inputdata != NULL) {
 			    #else
 			    av_ptr(funclist, void*, (!strcmp(arg, "NULL") ? NULL : (void*)(atol(arg))));
 			    #endif
-			#elif GTK_SERVER_CINV
-			    #ifdef GTK_SERVER_XF
-			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (FL_OBJECT*)(atol(arg)));
-			    #elif GTK_SERVER_MOTIF
-			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (Widget)(atol(arg)));
-			    #elif GTK_SERVER_GTK1x || GTK_SERVER_GTK2x
-			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (GtkObject*)(atol(arg)));
-			    #elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
-			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (GtkWidget*)(atol(arg)));
-			    #else
-			    theargs[i].wvalue = (!strcmp(arg, "NULL") ? NULL : (void*)(atol(arg)));
-			    #endif
-			    strcat(argtypes, "p");
-			    argvalues[i] = &theargs[i].wvalue;
 			#elif GTK_SERVER_DYNCALL
 			    #ifdef GTK_SERVER_XF
 			    dcArgPointer(vm, (!strcmp(arg, "NULL") ? NULL : (FL_OBJECT*)atol(arg)));
@@ -4984,10 +4831,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, void*, Class_Found->ptr);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].pvalue = Class_Found->ptr;
-			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, Class_Found->ptr);
 			#endif
@@ -5000,10 +4843,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, void*, (!strcmp(arg, "NULL") ? NULL : (void*)atol(arg)));
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].pvalue = (!strcmp(arg, "NULL") ? NULL : (void*)atol(arg));
-			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, (!strcmp(arg, "NULL") ? NULL : (void*)atol(arg)));
 			#endif
@@ -5018,10 +4857,6 @@ if (inputdata != NULL) {
 			    argvalues[i] = &theargs[i].pvalue;
 			    #elif GTK_SERVER_FFCALL
 			    av_ptr(funclist, char*, (char*)Str_Found->value);
-			    #elif GTK_SERVER_CINV
-			    strcat(argtypes, "p");
-			    theargs[i].pvalue = (char*)Str_Found->value;
-			    argvalues[i] = &theargs[i].pvalue;
 			    #elif GTK_SERVER_DYNCALL
 			    dcArgPointer(vm, (char*)Str_Found->value);
 			    #endif
@@ -5034,10 +4869,6 @@ if (inputdata != NULL) {
 			    argvalues[i] = &theargs[i].pvalue;
 			    #elif GTK_SERVER_FFCALL
 			    av_ptr(funclist, char*, (char*)arg);
-			    #elif GTK_SERVER_CINV
-			    strcat(argtypes, "p");
-			    theargs[i].pvalue = (char*)arg;
-			    argvalues[i] = &theargs[i].pvalue;
 			    #elif GTK_SERVER_DYNCALL
 			    dcArgPointer(vm, (char*)arg);
 			    #endif
@@ -5051,10 +4882,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].lvalue;
 			#elif GTK_SERVER_FFCALL
 			av_int(funclist, (int)atoi(arg));
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "i");
-			theargs[i].lvalue = (int)atoi(arg);
-			argvalues[i] = &theargs[i].lvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgBool(vm, (int)atoi(arg));
 			#endif
@@ -5066,10 +4893,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].dvalue;
 			#elif GTK_SERVER_FFCALL
 			av_double(funclist, (double)strtod(arg, NULL));
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "d");
-			theargs[i].dvalue = (double)strtod(arg, NULL);
-			argvalues[i] = &theargs[i].dvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgDouble(vm, (double)strtod(arg, NULL));
 			#endif
@@ -5081,10 +4904,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].fvalue;
 			#elif GTK_SERVER_FFCALL
 			av_float(funclist, (float)strtod(arg, NULL));
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "f");
-			theargs[i].fvalue = (float)strtod(arg, NULL);
-			argvalues[i] = &theargs[i].fvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgFloat(vm, (float)strtod(arg, NULL));
 			#endif
@@ -5096,10 +4915,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, char*, (char*)base64_dec(arg));
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].pvalue = (char*)base64_dec(arg);
-			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, (char*)base64_dec(arg));
 			#endif
@@ -5111,10 +4926,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].lvalue;
 			#elif GTK_SERVER_FFCALL
 			av_long(funclist, (long)&gtk_func);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "l");
-			theargs[i].lvalue = (long)&gtk_func;
-			argvalues[i] = &theargs[i].lvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgLong(vm, (long)&gtk_func);
 			#endif
@@ -5141,10 +4952,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, char*, (char*)Macro_Type->name);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].pvalue = (char*)Macro_Type->name;
-			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, (char*)Macro_Type->name);
 			#endif
@@ -5156,10 +4963,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, char*, NULL);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].pvalue = NULL;
-			argvalues[i] = &theargs[i].pvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, NULL);
 			#endif
@@ -5173,10 +4976,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_lvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, long*, &long_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_lvalue = &long_address[i];		/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_lvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &long_address[i]);
 			#endif
@@ -5189,10 +4988,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_ivalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, int*, &int_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_ivalue = &int_address[i];		/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_ivalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &int_address[i]);
 			#endif
@@ -5205,10 +5000,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_hvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, short*, &short_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_hvalue = &short_address[i];		/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_hvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &short_address[i]);
 			#endif
@@ -5221,10 +5012,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_fvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, float*, &float_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_fvalue = &float_address[i];	/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_fvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &float_address[i]);
 			#endif
@@ -5237,10 +5024,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_dvalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, double*, &double_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_dvalue = &double_address[i];	/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_dvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &double_address[i]);
 			#endif
@@ -5273,10 +5056,6 @@ if (inputdata != NULL) {
 			    #else
 			    av_ptr(funclist, void*, obj_address[i]);
 			    #endif
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_wvalue = obj_address[i];		/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_wvalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, obj_address[i]);
 			#endif
@@ -5289,10 +5068,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, char**, &str_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_svalue = &str_address[i];		/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &str_address[i]);
 			#endif
@@ -5305,10 +5080,6 @@ if (inputdata != NULL) {
 			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_FFCALL
 			av_ptr(funclist, char**, &str_address[i]);
-			#elif GTK_SERVER_CINV
-			strcat(argtypes, "p");
-			theargs[i].p_svalue = &str_address[i];		/* Assign real variable address */
-			argvalues[i] = &theargs[i].p_svalue;
 			#elif GTK_SERVER_DYNCALL
 			dcArgPointer(vm, &str_address[i]);
 			#endif
@@ -5330,8 +5101,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Void_GUI(Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Void_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Void_GUI(func, Call_Found, vm);
 		#endif
@@ -5343,8 +5112,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Widget_GUI(widget_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Widget_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Widget_GUI(func, Call_Found, vm);
 		#endif
@@ -5356,8 +5123,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Pointer_OBJ(void_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Pointer_OBJ(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Pointer_OBJ(func, Call_Found, vm);
 		#endif
@@ -5369,8 +5134,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = String_GUI(string_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = String_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = String_GUI(func, Call_Found, vm);
 		#endif
@@ -5382,8 +5145,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Bool_GUI(int_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Bool_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Bool_GUI(func, Call_Found, vm);
 		#endif
@@ -5395,8 +5156,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Int_GUI(int_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Int_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Int_GUI(func, Call_Found, vm);
 		#endif
@@ -5408,8 +5167,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Long_GUI(long_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Long_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Long_GUI(func, Call_Found, vm);
 		#endif
@@ -5421,8 +5178,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Float_GUI(float_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Float_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx, 1);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Float_GUI(func, Call_Found, 1, vm);
 		#endif
@@ -5434,8 +5189,6 @@ if (inputdata != NULL) {
 		#elif GTK_SERVER_FFCALL
 		av_call(funclist);
 		retstr = Float_GUI(double_return, Call_Found);
-		#elif GTK_SERVER_CINV
-		retstr = Float_GUI(func, Call_Found, argtypes, argvalues, cinv_ctx, 2);
 		#elif GTK_SERVER_DYNCALL
 		retstr = Float_GUI(func, Call_Found, 2, vm);
 		#endif
@@ -5540,7 +5293,7 @@ if (inputdata != NULL) {
 		    /* No RETURN, no ASSOC or GET or COMPARE, no number, no string assignment, no assignment to other var? Execute the buffer */
 		    if(cmd != 15 && cmd != 14 && cmd != 5 && cmd != 4 && cmd != 6 && !is_value(buf) && *buf != 38 && *buf != 36)
 		    {
-			retstr = Call_Realize(buf, cinv_ctx);
+			retstr = Call_Realize(buf);
 		    }
 		    else {
 			/* Prefill result of macro */
@@ -6967,20 +6720,6 @@ if (gtkserver.LogDir != NULL){
 	}
     #endif
 
-#elif GTK_SERVER_CINV
-
-    cinv_ctx = cinv_context_create();
-    if (cinv_ctx == NULL) Print_Error("%s", 1, "\nERROR: Cannot create C/Invoke context!\n");
-
-    handle[0] = cinv_library_create(cinv_ctx, NULL);
-
-    i = 1; j = 1;
-    while(libs[j] != NULL && j < MAX_LIBS){
-	handle[i] = search_and_open_lib(libs[j], cinv_ctx);
-	if(handle[i]) { i++; }
-        j++;
-    }
-
 #elif GTK_SERVER_DYNCALL
 
     handle[0] = dlLoadLibrary(NULL);
@@ -7004,7 +6743,7 @@ if (gtkserver.behave & 16 && gtkserver.macro != NULL){
     /* If logging is enabled, write macro to log */
     if (logfile != NULL){fprintf(logfile, "COMMAND LINE: %s\n", gtkserver.macro); fflush(logfile); }
 
-    retstr = Call_Realize(Trim_String(gtkserver.macro), cinv_ctx);
+    retstr = Call_Realize(Trim_String(gtkserver.macro));
 
     /* If logging is enabled, write returnstring to log */
     if (logfile != NULL){fprintf(logfile, "SERVER: %s\n", retstr); fflush(logfile); }
@@ -7074,7 +6813,7 @@ if (gtkserver.mode == 1) {
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
-	retstr = Call_Realize(Trim_String(in), cinv_ctx);
+	retstr = Call_Realize(Trim_String(in));
 
 	/* If logging is enabled, write returnstring to log */
 	if (logfile != NULL){
@@ -7186,7 +6925,7 @@ if (gtkserver.mode == 2) {
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
-	retstr = Call_Realize(Trim_String(in), cinv_ctx);
+	retstr = Call_Realize(Trim_String(in));
 
 	/* If logging is enabled, write returnstring to log */
 	if (logfile != NULL){
@@ -7308,7 +7047,7 @@ if (gtkserver.mode == 2) {
 		    fflush(logfile);
 		}
 
-		retstr = Call_Realize(Trim_String(in), cinv_ctx);
+		retstr = Call_Realize(Trim_String(in));
 
 		/* If logging is enabled, write returnstring to log */
 		if (logfile != NULL){
@@ -7495,7 +7234,7 @@ while (1){
 	    if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	    #endif
 
-	    retstr = Call_Realize(Trim_String(in), cinv_ctx);
+	    retstr = Call_Realize(Trim_String(in));
 
 	    /* If logging is enabled, write returnstring to log */
 	    if (logfile != NULL){
@@ -7702,7 +7441,7 @@ if (gtkserver.mode == 6) {
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
-	retstr = Call_Realize(Trim_String(in), cinv_ctx);
+	retstr = Call_Realize(Trim_String(in));
 
 	/* If logging is enabled, write returnstring to log */
 	if (logfile != NULL){
@@ -7830,7 +7569,7 @@ while (1){
 	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
 	#endif
 
-	retstr = Call_Realize(Trim_String(in), cinv_ctx);
+	retstr = Call_Realize(Trim_String(in));
 
 	/* If logging is enabled, write returnstring to log */
 	if (logfile != NULL){
@@ -7941,7 +7680,7 @@ while (1){
     if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
     #endif
 
-    retstr = Call_Realize(Trim_String(in), cinv_ctx);
+    retstr = Call_Realize(Trim_String(in));
 
     /* If logging is enabled, write returnstring to log */
     if (logfile != NULL){
@@ -8044,7 +7783,7 @@ if (gtkserver.behave & 512) {
 }
 #endif
 
-retstr = Call_Realize(Trim_String(arg), cinv_ctx);
+retstr = Call_Realize(Trim_String(arg));
 
 /* If logging is enabled, write returnstring to log */
 if (logfile != NULL){

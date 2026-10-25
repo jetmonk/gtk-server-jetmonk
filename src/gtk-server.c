@@ -3455,6 +3455,37 @@ return(texture);
 #endif
 
 /*************************************************************************************************/
+/* Arguments in the variable part of a variadic call are passed with full register size, so 0    */
+/* works as NULL terminator and floats are promoted to double as C requires. FFI: see Prep_Cif.  */
+
+#define VARPART (varfixed >= 0 && i >= varfixed)
+#if GTK_SERVER_FFCALL
+#define FFCALL_INT(x) (VARPART ? av_long(funclist, (long)(x)) : av_int(funclist, (x)))
+#define FFCALL_FLOAT(x) (VARPART ? av_double(funclist, (double)(x)) : av_float(funclist, (x)))
+#elif GTK_SERVER_DYNCALL
+#define DYNCALL_INT(x) (VARPART ? dcArgLong(vm, (long)(x)) : dcArgInt(vm, (x)))
+#define DYNCALL_BOOL(x) (VARPART ? dcArgLong(vm, (long)(x)) : dcArgBool(vm, (x)))
+#define DYNCALL_FLOAT(x) (VARPART ? dcArgDouble(vm, (double)(x)) : dcArgFloat(vm, (x)))
+#endif
+
+#if GTK_SERVER_FFCALL && defined(__arm64__) && defined(__APPLE__)
+/* FFCALL has no notion of variadic functions. On arm64 MacOSX these expect all variable arguments
+ * on the stack, while avcall puts the first 8 integer and 8 floating point arguments in registers.
+ * Filling the remaining argument registers with dummies makes avcall put the rest on the stack. */
+static void FFCALL_Fill_Registers(av_alist *list, CONFIG *call, int fixed)
+{
+int i, gp = 0, fp = 0;
+
+for(i = 0; i < fixed; i++){
+    if(!strcmp(call->args[i], "DOUBLE") || !strcmp(call->args[i], "FLOAT")) fp++;
+    else gp++;
+}
+for(; gp < 8; gp++) av_long(*list, 0);
+for(; fp < 8; fp++) av_double(*list, 0.0);
+}
+#endif
+
+/*************************************************************************************************/
 /* This function has grown way to large. Sorry. :-) */
 
 char *Call_Realize (char *inputdata)
@@ -3488,6 +3519,7 @@ char *arg_type;                 /* Used by VARARGS */
 int in_varargs_list = 0;        /* In case we are in a varargs list of arguments */
 int variadic;                   /* Used by gtk_server_define_variadic */
 int argbase;                    /* Position of first argument type in a definition */
+int varfixed;                   /* Position of the first variable argument, -1 if none */
 int position = 0;               /* For gtk_server_pack to keep position in memory layout */
 
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
@@ -4619,6 +4651,12 @@ if (inputdata != NULL) {
 	}
 	/* Have we found a GTK call? */
 	if (Call_Found != NULL) {
+	    /* Where the variable arguments of a variadic function start, -1 if not variadic */
+	    varfixed = Call_Found->fixedargs;
+	    for (i = 0; i < atoi(Call_Found->argamount); i++) {
+		if (!strcmp(Call_Found->args[i], "VARARGS")) { varfixed = i; break; }
+	    }
+	    if (varfixed >= atoi(Call_Found->argamount)) varfixed = -1;
 	    /* Search function in libraries */
 	    #ifdef GTK_SERVER_UNIX
 	    i = 0;
@@ -4633,8 +4671,7 @@ if (inputdata != NULL) {
 	        #if GTK_SERVER_DYNCALL
 	        else {
 		    vm = dcNewCallVM(4096);
-		    /* Use macro here */
-		    dcMode(vm, DC_CALL_C_DEFAULT);
+		    dcMode(vm, varfixed >= 0 ? DC_CALL_C_ELLIPSIS : DC_CALL_C_DEFAULT);
 	        }
 	        #endif
             #elif GTK_SERVER_WIN32
@@ -4678,6 +4715,14 @@ if (inputdata != NULL) {
 		#endif
 		/* Determine type of argument */
 		for (i = 0; i < atoi(Call_Found->argamount); i++) {
+		    /* The variable arguments of a variadic function start here */
+		    if (i == varfixed) {
+			#if GTK_SERVER_DYNCALL
+			dcMode(vm, DC_CALL_C_ELLIPSIS_VARARGS);
+			#elif GTK_SERVER_FFCALL && defined(__arm64__) && defined(__APPLE__)
+			FFCALL_Fill_Registers(&funclist, Call_Found, varfixed);
+			#endif
+		    }
 		    arg = parse_data(list, i + 1 + item);
                     /* Check if arg = NULL (no arguments provided) and we are in VARARGS list */
                     if(arg == NULL && in_varargs_list) {
@@ -4740,9 +4785,9 @@ if (inputdata != NULL) {
 			    argtypes[i] = &ffi_type_uint;
 			    argvalues[i] = &theargs[i].ivalue;
 			    #elif GTK_SERVER_FFCALL
-			    av_int(funclist, Enum_Found->value);
+			    FFCALL_INT(Enum_Found->value);
 			    #elif GTK_SERVER_DYNCALL
-			    dcArgInt(vm, Enum_Found->value);
+			    DYNCALL_INT(Enum_Found->value);
 			    #endif
 			}
 			/* It is an int. */
@@ -4752,9 +4797,9 @@ if (inputdata != NULL) {
 			    argtypes[i] = &ffi_type_uint;
 			    argvalues[i] = &theargs[i].ivalue;
 			    #elif GTK_SERVER_FFCALL
-			    av_int(funclist, (int)atoi(arg));
+			    FFCALL_INT((int)atoi(arg));
 			    #elif GTK_SERVER_DYNCALL
-			    dcArgInt(vm, (int)atoi(arg));
+			    DYNCALL_INT((int)atoi(arg));
 			    #endif
 			}
 		    }
@@ -4881,9 +4926,9 @@ if (inputdata != NULL) {
 			argtypes[i] = &ffi_type_uint;
 			argvalues[i] = &theargs[i].lvalue;
 			#elif GTK_SERVER_FFCALL
-			av_int(funclist, (int)atoi(arg));
+			FFCALL_INT((int)atoi(arg));
 			#elif GTK_SERVER_DYNCALL
-			dcArgBool(vm, (int)atoi(arg));
+			DYNCALL_BOOL((int)atoi(arg));
 			#endif
 		    }
 		    else if (!strcmp(Call_Found->args[i], "DOUBLE")){
@@ -4903,9 +4948,9 @@ if (inputdata != NULL) {
 			argtypes[i] = &ffi_type_float;
 			argvalues[i] = &theargs[i].fvalue;
 			#elif GTK_SERVER_FFCALL
-			av_float(funclist, (float)strtod(arg, NULL));
+			FFCALL_FLOAT((float)strtod(arg, NULL));
 			#elif GTK_SERVER_DYNCALL
-			dcArgFloat(vm, (float)strtod(arg, NULL));
+			DYNCALL_FLOAT((float)strtod(arg, NULL));
 			#endif
 		    }
 		    else if (!strcmp(Call_Found->args[i], "BASE64")){

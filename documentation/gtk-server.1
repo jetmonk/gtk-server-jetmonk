@@ -517,6 +517,28 @@ messages. For example:
 .br
 gtk_server_string_from_pointer 62667232
 
+.TP
+.B gtk_server_mmap_create <size>
+Creates a buffer of <size> bytes for pixel data, so a client does not need to send images as BASE64 text. The buffer
+is a temporary file, mapped into the memory of the GTK\-server. Returns three values: a handle for the buffer, the path
+of the file and the address of the buffer in the memory of the GTK\-server. The client writes pixels to the file, for
+example with 'dd conv=notrunc', or maps the file into its own memory. The address can be passed to an argument of the
+POINTER type. The file is created in /dev/shm if it exists, otherwise in $TMPDIR or /tmp, and is removed when the
+GTK\-server exits. Only available on Unix-like systems.
+.TP
+.B gtk_server_mmap_texture <handle> <width> <height> <stride> <format> [offset]
+Copies an image of <width> by <height> pixels from the buffer into a new GdkTexture, and returns the texture. The image
+starts [offset] bytes into the buffer (default 0), and <stride> is the amount of bytes from the start of one row to
+the next. The <format> is one of RGBA, BGRA, ARGB, RGBA_PREMULTIPLIED or BGRA_PREMULTIPLIED (4 bytes per pixel), RGB or
+BGR (3 bytes per pixel). Because the pixels are copied, the client can write the next image as soon as this call
+returns. Release the texture with g_object_unref when it is not needed anymore. GTK4 only.
+.TP
+.B gtk_server_mmap_pixbuf <handle> <width> <height> <stride> <format> [offset]
+Same as gtk_server_mmap_texture, but copies the image into a new GdkPixbuf. The <format> is RGBA or RGB. GTK3 only.
+.TP
+.B gtk_server_mmap_free <handle>
+Removes the buffer and its file. Textures and pixbufs made from the buffer remain valid.
+
 .SH "FILES"
 .I gtk-server.cfg
 .RS

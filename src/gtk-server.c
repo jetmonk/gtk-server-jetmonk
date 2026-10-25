@@ -3342,9 +3342,9 @@ return TRUE;
 /*************************************************************************************************/
 /* Memory mapped buffers, so client scripts can hand over pixel data without encoding it. The    */
 /* buffer is a file which is mapped by the GTK-server: clients either write to the file or map   */
-/* it themselves. Prototype, GTK4 only.                                                          */
+/* it themselves. The pixels become a GdkTexture in GTK4 or a GdkPixbuf in GTK3. Prototype.      */
 
-#if GTK_SERVER_GTK4x && GTK_SERVER_UNIX
+#ifdef GTK_SERVER_UNIX
 #include <sys/mman.h>
 #include <limits.h>
 
@@ -3415,6 +3415,26 @@ if(!registered) { atexit(Mmap_Cleanup); registered = 1; }
 return(i);
 }
 
+#if GTK_SERVER_GTK4x || GTK_SERVER_GTK3x
+/* Checks that an image fits in the buffer, returns the amount of bytes it takes or 0 */
+static size_t Mmap_Region(int slot, size_t offset, int width, int height, size_t stride, int bpp)
+{
+struct stat sb;
+size_t len;
+
+if(bpp <= 0 || width <= 0 || height <= 0 || stride < (size_t)width * bpp) return(0);
+len = stride * (height - 1) + (size_t)width * bpp;
+if(offset + len > mmaps[slot].size) return(0);
+
+/* A client which truncated the file would make us crash with SIGBUS */
+if(fstat(mmaps[slot].fd, &sb) < 0 || (size_t)sb.st_size < mmaps[slot].size) return(0);
+
+return(len);
+}
+
+#endif
+
+#if GTK_SERVER_GTK4x
 /* Map a format name to a GdkMemoryFormat, also returns bytes per pixel */
 static int Mmap_Format(char *name, GdkMemoryFormat *format)
 {
@@ -3432,26 +3452,42 @@ return(0);
 /* Copy a region of the buffer into a new texture, returns NULL on error */
 static GdkTexture *Mmap_Texture(int slot, size_t offset, int width, int height, size_t stride, char *formatname)
 {
-GdkMemoryFormat format;
-struct stat sb;
+GdkMemoryFormat format = GDK_MEMORY_R8G8B8A8;
 GBytes *bytes;
 GdkTexture *texture;
-int bpp;
+size_t len;
 
-if((bpp = Mmap_Format(formatname, &format)) == 0) return(NULL);
-if(width <= 0 || height <= 0 || stride < (size_t)width * bpp) return(NULL);
-if(offset + stride * (height - 1) + (size_t)width * bpp > mmaps[slot].size) return(NULL);
-
-/* A client which truncated the file would make us crash with SIGBUS */
-if(fstat(mmaps[slot].fd, &sb) < 0 || (size_t)sb.st_size < mmaps[slot].size) return(NULL);
+if((len = Mmap_Region(slot, offset, width, height, stride, Mmap_Format(formatname, &format))) == 0) return(NULL);
 
 /* Copy, so the client can write the next frame as soon as we return */
-bytes = g_bytes_new((char*)mmaps[slot].addr + offset, stride * (height - 1) + (size_t)width * bpp);
+bytes = g_bytes_new((char*)mmaps[slot].addr + offset, len);
 texture = gdk_memory_texture_new(width, height, format, bytes, stride);
 g_bytes_unref(bytes);
 
 return(texture);
 }
+#elif GTK_SERVER_GTK3x
+/* Copy a region of the buffer into a new pixbuf, returns NULL on error. A GdkPixbuf only knows
+ * 8 bit RGB and RGBA without premultiplied alpha. */
+static GdkPixbuf *Mmap_Pixbuf(int slot, size_t offset, int width, int height, size_t stride, char *formatname)
+{
+GBytes *bytes;
+GdkPixbuf *pixbuf;
+size_t len;
+int alpha;
+
+if(formatname == NULL || (strcmp(formatname, "RGBA") && strcmp(formatname, "RGB"))) return(NULL);
+alpha = !strcmp(formatname, "RGBA");
+if((len = Mmap_Region(slot, offset, width, height, stride, alpha ? 4 : 3)) == 0) return(NULL);
+
+/* Copy, so the client can write the next frame as soon as we return */
+bytes = g_bytes_new((char*)mmaps[slot].addr + offset, len);
+pixbuf = gdk_pixbuf_new_from_bytes(bytes, GDK_COLORSPACE_RGB, alpha, 8, width, height, (int)stride);
+g_bytes_unref(bytes);
+
+return(pixbuf);
+}
+#endif
 #endif
 
 /*************************************************************************************************/
@@ -3997,7 +4033,7 @@ if (inputdata != NULL) {
 	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, getpid(), gtkserver.post);
     }
     #endif
-    #if GTK_SERVER_GTK4x && GTK_SERVER_UNIX
+    #ifdef GTK_SERVER_UNIX
     /* Create a memory mapped buffer, returns handle, path of the file and address */
     else if (!strcmp("gtk_server_mmap_create", gtk_api_call)) {
 	if ((arg = parse_data(list, ++item)) == NULL || atol(arg) <= 0){
@@ -4008,6 +4044,7 @@ if (inputdata != NULL) {
 	}
 	retstr = Print_Result("%s%s%d %s %ld%s", 6, gtkserver.pre, gtkserver.handle, i + 1, mmaps[i].path, (long)mmaps[i].addr, gtkserver.post);
     }
+    #if GTK_SERVER_GTK4x
     /* Copy (part of) a buffer into a new GdkTexture: handle width height stride format [offset] */
     else if (!strcmp("gtk_server_mmap_texture", gtk_api_call)) {
 	GdkTexture *texture;
@@ -4027,6 +4064,27 @@ if (inputdata != NULL) {
 	}
 	retstr = Print_Result("%s%s%ld%s", 4, gtkserver.pre, gtkserver.handle, (long)texture, gtkserver.post);
     }
+    #elif GTK_SERVER_GTK3x
+    /* Copy (part of) a buffer into a new GdkPixbuf: handle width height stride format [offset] */
+    else if (!strcmp("gtk_server_mmap_pixbuf", gtk_api_call)) {
+	GdkPixbuf *pixbuf;
+	char *w, *h, *s, *f, *o;
+
+	if ((i = Mmap_Slot(parse_data(list, ++item))) < 0){
+	    Print_Error("%s", 1, "\nERROR: Invalid handle in GTK_SERVER_MMAP_PIXBUF!");
+	}
+	w = parse_data(list, ++item); h = parse_data(list, ++item); s = parse_data(list, ++item); f = parse_data(list, ++item);
+	if (w == NULL || h == NULL || s == NULL || f == NULL){
+	    Print_Error("%s", 1, "\nERROR: Missing argument in GTK_SERVER_MMAP_PIXBUF!");
+	}
+	o = parse_data(list, ++item);
+	pixbuf = Mmap_Pixbuf(i, o == NULL ? 0 : (size_t)atol(o), atoi(w), atoi(h), (size_t)atol(s), f);
+	if (pixbuf == NULL){
+	    Print_Error("%s", 1, "\nERROR: Invalid size, format (RGB or RGBA only) or truncated buffer in GTK_SERVER_MMAP_PIXBUF!");
+	}
+	retstr = Print_Result("%s%s%ld%s", 4, gtkserver.pre, gtkserver.handle, (long)pixbuf, gtkserver.post);
+    }
+    #endif
     /* Remove a memory mapped buffer */
     else if (!strcmp("gtk_server_mmap_free", gtk_api_call)) {
 	if ((i = Mmap_Slot(parse_data(list, ++item))) < 0){

@@ -3453,6 +3453,121 @@ return TRUE;
 #endif
 
 /*************************************************************************************************/
+/* Memory mapped buffers, so client scripts can hand over pixel data without encoding it. The    */
+/* buffer is a file which is mapped by the GTK-server: clients either write to the file or map   */
+/* it themselves. Prototype, GTK4 only.                                                          */
+
+#if GTK_SERVER_GTK4x && GTK_SERVER_UNIX
+#include <sys/mman.h>
+#include <limits.h>
+
+#define MAX_MMAPS 16
+
+static struct {
+    void *addr;
+    size_t size;
+    int fd;
+    char path[PATH_MAX];
+} mmaps[MAX_MMAPS];
+
+/* Remove all buffers, also called at exit */
+static void Mmap_Cleanup(void)
+{
+int i;
+
+for(i = 0; i < MAX_MMAPS; i++){
+    if(mmaps[i].addr != NULL){
+	munmap(mmaps[i].addr, mmaps[i].size);
+	close(mmaps[i].fd);
+	unlink(mmaps[i].path);
+	mmaps[i].addr = NULL;
+    }
+}
+}
+
+/* Returns the slot for a handle given by the client, or -1 */
+static int Mmap_Slot(char *handle)
+{
+int i;
+
+if(handle == NULL) return(-1);
+i = atoi(handle) - 1;
+if(i < 0 || i >= MAX_MMAPS || mmaps[i].addr == NULL) return(-1);
+return(i);
+}
+
+/* Create buffer: returns slot or -1 */
+static int Mmap_Create(size_t size)
+{
+static int registered = 0;
+struct stat sb;
+char *dir;
+int i;
+
+for(i = 0; i < MAX_MMAPS && mmaps[i].addr != NULL; i++);
+if(i == MAX_MMAPS || size == 0) return(-1);
+
+/* On Linux /dev/shm is memory backed, otherwise use the temp directory */
+if(stat("/dev/shm", &sb) == 0 && S_ISDIR(sb.st_mode)) dir = "/dev/shm";
+else if((dir = getenv("TMPDIR")) == NULL || *dir == '\0') dir = "/tmp";
+snprintf(mmaps[i].path, PATH_MAX, "%s%sgtk-server-mmap-XXXXXX", dir, dir[strlen(dir)-1] == '/' ? "" : "/");
+
+/* The mkstemp creates the file with mode 0600 */
+if((mmaps[i].fd = mkstemp(mmaps[i].path)) < 0) return(-1);
+if(ftruncate(mmaps[i].fd, size) < 0 ||
+	(mmaps[i].addr = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, mmaps[i].fd, 0)) == MAP_FAILED){
+    mmaps[i].addr = NULL;
+    close(mmaps[i].fd);
+    unlink(mmaps[i].path);
+    return(-1);
+}
+mmaps[i].size = size;
+memset(mmaps[i].addr, 0, size);
+
+if(!registered) { atexit(Mmap_Cleanup); registered = 1; }
+return(i);
+}
+
+/* Map a format name to a GdkMemoryFormat, also returns bytes per pixel */
+static int Mmap_Format(char *name, GdkMemoryFormat *format)
+{
+if(name == NULL) return(0);
+if(!strcmp(name, "RGBA")) { *format = GDK_MEMORY_R8G8B8A8; return(4); }
+if(!strcmp(name, "BGRA")) { *format = GDK_MEMORY_B8G8R8A8; return(4); }
+if(!strcmp(name, "ARGB")) { *format = GDK_MEMORY_A8R8G8B8; return(4); }
+if(!strcmp(name, "RGBA_PREMULTIPLIED")) { *format = GDK_MEMORY_R8G8B8A8_PREMULTIPLIED; return(4); }
+if(!strcmp(name, "BGRA_PREMULTIPLIED")) { *format = GDK_MEMORY_B8G8R8A8_PREMULTIPLIED; return(4); }
+if(!strcmp(name, "RGB")) { *format = GDK_MEMORY_R8G8B8; return(3); }
+if(!strcmp(name, "BGR")) { *format = GDK_MEMORY_B8G8R8; return(3); }
+return(0);
+}
+
+/* Copy a region of the buffer into a new texture, returns NULL on error */
+static GdkTexture *Mmap_Texture(int slot, size_t offset, int width, int height, size_t stride, char *formatname)
+{
+GdkMemoryFormat format;
+struct stat sb;
+GBytes *bytes;
+GdkTexture *texture;
+int bpp;
+
+if((bpp = Mmap_Format(formatname, &format)) == 0) return(NULL);
+if(width <= 0 || height <= 0 || stride < (size_t)width * bpp) return(NULL);
+if(offset + stride * (height - 1) + (size_t)width * bpp > mmaps[slot].size) return(NULL);
+
+/* A client which truncated the file would make us crash with SIGBUS */
+if(fstat(mmaps[slot].fd, &sb) < 0 || (size_t)sb.st_size < mmaps[slot].size) return(NULL);
+
+/* Copy, so the client can write the next frame as soon as we return */
+bytes = g_bytes_new((char*)mmaps[slot].addr + offset, stride * (height - 1) + (size_t)width * bpp);
+texture = gdk_memory_texture_new(width, height, format, bytes, stride);
+g_bytes_unref(bytes);
+
+return(texture);
+}
+#endif
+
+/*************************************************************************************************/
 /* This function has grown way to large. Sorry. :-) */
 
 char *Call_Realize (char *inputdata, void* cinv_ctx)
@@ -3968,6 +4083,48 @@ if (inputdata != NULL) {
     /* Return the PID of the GTK-server */
     else if (!strcmp("gtk_server_pid", gtk_api_call)) {
 	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, getpid(), gtkserver.post);
+    }
+    #endif
+    #if GTK_SERVER_GTK4x && GTK_SERVER_UNIX
+    /* Create a memory mapped buffer, returns handle, path of the file and address */
+    else if (!strcmp("gtk_server_mmap_create", gtk_api_call)) {
+	if ((arg = parse_data(list, ++item)) == NULL || atol(arg) <= 0){
+	    Print_Error("%s", 1, "\nERROR: Missing or invalid size in GTK_SERVER_MMAP_CREATE!");
+	}
+	if ((i = Mmap_Create((size_t)atol(arg))) < 0){
+	    Print_Error("%s%s", 2, "\nERROR: Cannot create buffer in GTK_SERVER_MMAP_CREATE: ", strerror(errno));
+	}
+	retstr = Print_Result("%s%s%d %s %ld%s", 6, gtkserver.pre, gtkserver.handle, i + 1, mmaps[i].path, (long)mmaps[i].addr, gtkserver.post);
+    }
+    /* Copy (part of) a buffer into a new GdkTexture: handle width height stride format [offset] */
+    else if (!strcmp("gtk_server_mmap_texture", gtk_api_call)) {
+	GdkTexture *texture;
+	char *w, *h, *s, *f, *o;
+
+	if ((i = Mmap_Slot(parse_data(list, ++item))) < 0){
+	    Print_Error("%s", 1, "\nERROR: Invalid handle in GTK_SERVER_MMAP_TEXTURE!");
+	}
+	w = parse_data(list, ++item); h = parse_data(list, ++item); s = parse_data(list, ++item); f = parse_data(list, ++item);
+	if (w == NULL || h == NULL || s == NULL || f == NULL){
+	    Print_Error("%s", 1, "\nERROR: Missing argument in GTK_SERVER_MMAP_TEXTURE!");
+	}
+	o = parse_data(list, ++item);
+	texture = Mmap_Texture(i, o == NULL ? 0 : (size_t)atol(o), atoi(w), atoi(h), (size_t)atol(s), f);
+	if (texture == NULL){
+	    Print_Error("%s", 1, "\nERROR: Invalid size, format or truncated buffer in GTK_SERVER_MMAP_TEXTURE!");
+	}
+	retstr = Print_Result("%s%s%ld%s", 4, gtkserver.pre, gtkserver.handle, (long)texture, gtkserver.post);
+    }
+    /* Remove a memory mapped buffer */
+    else if (!strcmp("gtk_server_mmap_free", gtk_api_call)) {
+	if ((i = Mmap_Slot(parse_data(list, ++item))) < 0){
+	    Print_Error("%s", 1, "\nERROR: Invalid handle in GTK_SERVER_MMAP_FREE!");
+	}
+	munmap(mmaps[i].addr, mmaps[i].size);
+	close(mmaps[i].fd);
+	unlink(mmaps[i].path);
+	mmaps[i].addr = NULL;
+	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
     }
     #endif
     /* Check if we have a GTK function (re-)definition. As you can see both 'redefine' and 'define' follow the same

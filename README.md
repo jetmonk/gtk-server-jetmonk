@@ -66,9 +66,11 @@ The commits after the 2.4.7 baseline:
    `gtk_server_redefine_variadic`. A function that a script redefines with
    `gtk_server_redefine` stays variadic. See `man documentation/gtk-server.cfg.1`.
 
-3. **Memory mapped buffers for pixel data (GTK4 prototype).** Instead of
+3. **Memory mapped buffers for pixel data (prototype).** Instead of
    sending images as BASE64, a client writes raw pixels into a buffer it
-   shares with GTK-server, and turns the buffer into a texture:
+   shares with GTK-server, and turns the buffer into an image: a texture on
+   GTK4, a pixbuf on GTK3. Creating and freeing buffers works in every
+   backend on Unix-like systems:
 
    ```
    # Create a buffer of <size> bytes: a temp file at <path>, mapped into gtk-server's
@@ -76,8 +78,9 @@ The commits after the 2.4.7 baseline:
    #     The client writes pixels to <path>, e.g. with: dd ... conv=notrunc
    gtk_server_mmap_create <size>        -> <handle> <path> <address>
 
-   # Copy the bytes the client put in buffer <handle> into a new GdkTexture, as an image of
-   #     <width> by <height> pixels, starting [offset] bytes into the buffer (default 0).
+   # GTK4 only: copy the bytes the client put in buffer <handle> into a new GdkTexture,
+   #     as an image of <width> by <height> pixels, starting [offset] bytes into the buffer
+   #     (default 0).
    #     <stride> is the number of bytes from the start of one row to the next
    #     (at least <width> * bytes per pixel). <format> is one of:
    #         RGBA, BGRA, ARGB, RGBA_PREMULTIPLIED, BGRA_PREMULTIPLIED   (4 bytes per pixel)
@@ -86,14 +89,24 @@ The commits after the 2.4.7 baseline:
    #     be rewritten right away. Release the texture with g_object_unref when done with it.
    gtk_server_mmap_texture <handle> <width> <height> <stride> <format> [offset]   -> <texture>
 
-   # Unmap the buffer and delete its file. Textures made from it stay valid.
+   # GTK3 only: the same, but into a new GdkPixbuf. A pixbuf only knows 8 bit RGBA and RGB
+   #     without premultiplied alpha, so <format> is RGBA or RGB. Release it with
+   #     g_object_unref when done with it.
+   gtk_server_mmap_pixbuf <handle> <width> <height> <stride> <format> [offset]    -> <pixbuf>
+
+   # Unmap the buffer and delete its file. Textures and pixbufs made from it stay valid.
    gtk_server_mmap_free <handle>        -> ok
    ```
 
    The buffer is a file, so a shell script can write to it with
    `dd conv=notrunc`, and other languages can map it themselves.
-   [demo-gtk4/mmap.bash](demo-gtk4/mmap.bash) animates a 512x512 picture
-   from bash at about 140 frames per second on an Apple Silicon Mac.
+   [demo-gtk4/mmap.bash](demo-gtk4/mmap.bash) and
+   [demo-gtk3/mmap.bash](demo-gtk3/mmap.bash) animate a 512x512 picture
+   from bash, at about 140 and 175 frames per second on an Apple Silicon Mac.
+
+   GTK-server removes its buffer files when it exits, also after an error,
+   but not when it is killed by a signal. The files are named
+   `gtk-server-mmap-*`, in `/dev/shm` on Linux and in `$TMPDIR` elsewhere.
 
 4. **C/Invoke removed.** GTK-server could be built with one of four calling
    libraries. C/Invoke has not been developed since about 2007 and does not

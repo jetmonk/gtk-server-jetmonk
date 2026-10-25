@@ -71,9 +71,23 @@ The commits after the 2.4.7 baseline:
    shares with GTK-server, and turns the buffer into a texture:
 
    ```
+   # Create a buffer of <size> bytes: a temp file at <path>, mapped into gtk-server's
+   #     memory at <address> (only meaningful inside gtk-server, e.g. as a POINTER argument).
+   #     The client writes pixels to <path>, e.g. with: dd ... conv=notrunc
    gtk_server_mmap_create <size>        -> <handle> <path> <address>
-   gtk_server_mmap_texture <handle> <width> <height> <stride> <format> [offset]
-   gtk_server_mmap_free <handle>
+
+   # Copy the bytes the client put in buffer <handle> into a new GdkTexture, as an image of
+   #     <width> by <height> pixels, starting [offset] bytes into the buffer (default 0).
+   #     <stride> is the number of bytes from the start of one row to the next
+   #     (at least <width> * bytes per pixel). <format> is one of:
+   #         RGBA, BGRA, ARGB, RGBA_PREMULTIPLIED, BGRA_PREMULTIPLIED   (4 bytes per pixel)
+   #         RGB, BGR                                                   (3 bytes per pixel)
+   #     Returns an integer handle for the texture. The pixels are copied, so the buffer can
+   #     be rewritten right away. Release the texture with g_object_unref when done with it.
+   gtk_server_mmap_texture <handle> <width> <height> <stride> <format> [offset]   -> <texture>
+
+   # Unmap the buffer and delete its file. Textures made from it stay valid.
+   gtk_server_mmap_free <handle>        -> ok
    ```
 
    The buffer is a file, so a shell script can write to it with

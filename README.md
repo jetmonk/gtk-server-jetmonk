@@ -1,9 +1,21 @@
-# GTK-server, with fixes for macOS on Apple Silicon
+# gtk-server-jetmonk
 
-This is a fork of [GTK-server](https://gtk-server.org/) by Peter van Eerten.
+An unofficial variant of [GTK-server](https://gtk-server.org/) by Peter van
+Eerten, maintained by jetmonk. It fixes building and running on macOS with
+Apple Silicon, fixes calls to variadic C functions, and adds memory mapped
+buffers for pixel data. It is not affiliated with or endorsed by the original
+project; for the official GTK-server, see the links below.
+
 GTK-server lets any language that can read and write text, such as a shell
 script, build a GTK user interface. The script sends commands like
 `gtk_window_new` over stdin, a pipe or a socket.
+
+The programs, the configfile and the `gtk_server_*` commands keep their
+original names, so scripts written for GTK-server 2.4.7 work with this
+variant. It may diverge further from upstream, for example by supporting
+only the libffi calling method. Such differences are listed below.
+
+## Origin
 
 The upstream project lives in a Fossil repository on chiselapp:
 <https://chiselapp.com/user/gtk-server/repository/gtk-server/timeline>.
@@ -15,7 +27,7 @@ identical to the gtk-server-2.4.7 release tarball.
 The original documentation is in [README.1ST](README.1ST), [INSTALL](INSTALL)
 and [documentation/](documentation/).
 
-## What this fork changes
+## What this variant changes
 
 The commits after the 2.4.7 baseline:
 

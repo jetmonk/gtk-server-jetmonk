@@ -106,5 +106,6 @@ Known problems inherited from 2.4.7:
 ## License
 
 GTK-server is released under the GNU General Public License, version 2 or
-(at your option) any later version. See the header of `src/gtk-server.c`.
+(at your option) any later version, see the header of `src/gtk-server.c`.
+The license text is in [COPYING](COPYING).
 The included uthash library is under the BSD license.

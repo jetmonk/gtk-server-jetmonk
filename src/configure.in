@@ -190,8 +190,9 @@ then
 	GTK3_CFLAGS="`pkg-config --cflags gtk+-3.0`" gtk3x=yes], [], [])
 
     AC_CHECK_LIB([gtk-x11-2.0], [gtk_init],
-	[GTK2_LIBS="`pkg-config --libs gtk+-2.0`"
-	GTK2_CFLAGS="`pkg-config --cflags gtk+-2.0`" gtk2x=yes], [], [])
+	[if pkg-config --exists gtk+-2.0; then
+	GTK2_LIBS="`pkg-config --libs gtk+-2.0`"
+	GTK2_CFLAGS="`pkg-config --cflags gtk+-2.0`" gtk2x=yes; fi], [], [])
 
     AC_CHECK_LIB([gtk], [gtk_init],
 	[GTK1_LIBS="`pkg-config --libs gtk+`"
@@ -202,7 +203,7 @@ then
 	[XF_LIBS="-L/usr/X11R6/lib -lXext -lX11 -lXpm -lGL -lforms -lm"
         XF_CFLAGS="-I/usr/X11R6/include/X11" xf=yes], [], [])
 
-    AC_CHECK_LIB([Xt], [XtVaAppInitialize],
+    AC_CHECK_LIB([Xm], [XmCreateMainWindow],
 	[MOTIF_LIBS="-lXm -lXt -lX11 -lm"
         MOTIF_CFLAGS="-I/usr/X11R6/include/X11" motif=yes], [], [])
 
@@ -292,13 +293,6 @@ AC_ARG_WITH(dyncall,
 # GTK-server as generic shared object
 library=yes
 
-if test "$library" = yes; then
-    if test "$darwin" = yes; then
-	SOTARGET="libgtk-server.dylib"
-	LDFLAGS="${LDFLAGS} -dynamiclib"
-    fi
-fi
-
 # Default Unix installation
 DEFAULT="1"
 
@@ -370,8 +364,10 @@ if test "$ssl" = yes; then
 fi
 
 # Always export local symbols
-if test "$CC" = gcc; then
-    if test "$darwin" = yes || test "$solaris" = yes || test "$bsd" = yes; then
+if test "$GCC" = yes; then
+    if test "$darwin" = yes; then
+	LDFLAGS="-Wl,-export_dynamic ${LDFLAGS}"
+    elif test "$solaris" = yes || test "$bsd" = yes; then
 	LDFLAGS="--export-dynamic ${LDFLAGS}"
     else
 	LDFLAGS="-export-dynamic ${LDFLAGS}"

@@ -39,49 +39,49 @@ gtk-server-gtk4 : gtk-server.c
 	$(STRIP) $@
 
 libgtk-server-gtk4.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK4x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(GTK4_LIBS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_GTK4x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(GTK4_LIBS) $(SSLFLAGS) $(LDFLAGS)
 
 gtk-server-gtk3 : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK3x $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS)
 	$(STRIP) $@
 
 libgtk-server-gtk3.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK3x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_GTK3x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS)
 
 gtk-server-gtk2 : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK2x $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(SSLFLAGS) $(LDFLAGS) -Wno-deprecated-declarations
 	$(STRIP) $@
 
 libgtk-server-gtk2.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK2x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(LDFLAGS) -Wno-deprecated-declarations
+	$(CC) -DGTK_SERVER_GTK2x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(SSLFLAGS) $(LDFLAGS) -Wno-deprecated-declarations
 
 gtk-server-gtk1 : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK1x $(CFLAGS) $(GTK1_CFLAGS) -o $@ gtk-server.c $(GTK1_LIBS) $(SSLFLAGS) $(LDFLAGS)
 	$(STRIP) $@
 
 libgtk-server-gtk1.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK1x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK1_CFLAGS) -o $@ gtk-server.c $(GTK1_LIBS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_GTK1x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK1_CFLAGS) -o $@ gtk-server.c $(GTK1_LIBS) $(SSLFLAGS) $(LDFLAGS)
 
 gtk-server-xf : gtk-server.c
 	$(CC) -DGTK_SERVER_XF $(CFLAGS) $(XF_CFLAGS) -o $@ gtk-server.c $(XF_LIBS) $(SSLFLAGS) $(LDFLAGS)
 	$(STRIP) $@
 
 libgtk-server-xf.so : gtk-server.c
-	$(CC) -DGTK_SERVER_XF -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(XF_CFLAGS) -o $@ gtk-server.c $(XF_LIBS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_XF -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(XF_CFLAGS) -o $@ gtk-server.c $(XF_LIBS) $(SSLFLAGS) $(LDFLAGS)
 
 gtk-server-motif : gtk-server.c
 	$(CC) -DGTK_SERVER_MOTIF $(CFLAGS) $(MOTIF_CFLAGS) -o $@ gtk-server.c $(MOTIF_LIBS) $(SSLFLAGS) $(LDFLAGS)
 	$(STRIP) $@
 
 libgtk-server-motif.so : gtk-server.c
-	$(CC) -DGTK_SERVER_MOTIF -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(MOTIF_CFLAGS) -o $@ gtk-server.c $(MOTIF_LIBS) $(LDFLAGS)
+	$(CC) -DGTK_SERVER_MOTIF -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(MOTIF_CFLAGS) -o $@ gtk-server.c $(MOTIF_LIBS) $(SSLFLAGS) $(LDFLAGS)
 
 gtk-server-console : gtk-server.c
 	$(CC) $(CFLAGS) -o $@ gtk-server.c $(SSLFLAGS) $(LDFLAGS)
 	$(STRIP) $@
 
 libgtk-server-console.so : gtk-server.c
-	$(CC) -shared $(CFLAGS) -o $@ gtk-server.c $(LDFLAGS)
+	$(CC) -shared $(CFLAGS) -o $@ gtk-server.c $(SSLFLAGS) $(LDFLAGS)
 
 gtk-server.exe : $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)

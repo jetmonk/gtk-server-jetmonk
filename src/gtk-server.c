@@ -680,6 +680,7 @@ typedef struct config_struct {
     char *callbacktype;
     char *returnvalue;
     char argamount[MAX_DIG];
+    int fixedargs;           /* variadic functions: amount of fixed arguments, otherwise -1 */
     char *args[MAX_ARGS];
     UT_hash_handle hh;       /* makes this structure hashable */
 } CONFIG;
@@ -1054,6 +1055,8 @@ char *base64_enc(char *arg, int len);
 
 /* Define list for CONFIGURATION settings */
 CONFIG *Gtk_Api_Config = NULL;
+/* Set when parsing a VARIADIC_FUNCTION_NAME */
+int variadic;
 /* Define list for macro definitions */
 MACRO *Macro_Defs;
 MACRO *Macro_Last;
@@ -2526,6 +2529,42 @@ return(ptrstr);
 }
 
 /*************************************************************************************************/
+/* Variadic functions must be prepared with ffi_prep_cif_var, otherwise the variable arguments  */
+/* end up in the wrong place on platforms like arm64 MacOSX. See VARIADIC_FUNCTION_NAME.          */
+
+#ifdef GTK_SERVER_FFI
+static ffi_status Prep_Cif(ffi_cif *cif, CONFIG *call, ffi_type *rtype, ffi_type *argtypes[], void *argptr[])
+{
+static union { long l; double d; } promoted[MAX_ARGS];
+int i, total, fixed = -1;
+
+total = atoi(call->argamount);
+
+/* A VARARGS definition in the configfile marks where the variable arguments start */
+for(i = 0; i < total; i++){
+    if(!strcmp(call->args[i], "VARARGS")) { fixed = i; break; }
+}
+if(fixed < 0) fixed = call->fixedargs;
+if(fixed < 0 || fixed >= total) return(ffi_prep_cif(cif, FFI_DEFAULT_ABI, total, rtype, argtypes));
+
+/* Variable arguments take a full slot: widen ints so a 0 works as NULL sentinel, floats become double */
+for(i = fixed; i < total; i++){
+    if(argtypes[i] == &ffi_type_uint || argtypes[i] == &ffi_type_sint){
+	promoted[i].l = (long)*(int*)argptr[i];
+	argptr[i] = &promoted[i].l;
+	argtypes[i] = &ffi_type_slong;
+    }
+    else if(argtypes[i] == &ffi_type_float){
+	promoted[i].d = (double)*(float*)argptr[i];
+	argptr[i] = &promoted[i].d;
+	argtypes[i] = &ffi_type_double;
+    }
+}
+return(ffi_prep_cif_var(cif, FFI_DEFAULT_ABI, fixed, total, rtype, argtypes));
+}
+#endif
+
+/*************************************************************************************************/
 
 #ifdef GTK_SERVER_FFCALL
 char *Void_GUI(CONFIG *call)
@@ -2547,7 +2586,7 @@ char *ptrstr;
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_void, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_void, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, NULL, argptr);
@@ -2634,7 +2673,7 @@ void *widget;
 char *ptrstr;
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_pointer, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_pointer, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, &widget, argptr);
@@ -2743,7 +2782,7 @@ void *pointer;
 char *ptrstr;
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_pointer, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_pointer, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, &pointer, argptr);
@@ -2797,7 +2836,7 @@ char *result;				/* temp result holder */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_pointer, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_pointer, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, &result, argptr);
@@ -2856,7 +2895,7 @@ ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_uint, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_uint, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, &boolean, argptr);
@@ -2912,7 +2951,7 @@ unsigned int result;			/* Temporary result holder */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_uint, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_uint, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, &result, argptr);
@@ -2966,7 +3005,7 @@ unsigned long result;			/* Temporary result holder */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
-if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atol(call->argamount), &ffi_type_ulong, argtypes) == FFI_OK)
+if (Prep_Cif(&cif, call, &ffi_type_ulong, argtypes, argptr) == FFI_OK)
 {
     #ifdef GTK_SERVER_UNIX
     ffi_call(&cif, func, &result, argptr);
@@ -3039,7 +3078,7 @@ ptrstr = Return_Pointer_Args(call);
 
 /* Initialize the cif, realize function */
 if (type == 1){
-    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_float, argtypes) == FFI_OK) {
+    if (Prep_Cif(&cif, call, &ffi_type_float, argtypes, argptr) == FFI_OK) {
 	#ifdef GTK_SERVER_UNIX
 	ffi_call(&cif, func, &fresult, argptr);
 	#elif GTK_SERVER_WIN32
@@ -3052,7 +3091,7 @@ if (type == 1){
     return Print_Result("%s%s%f%s%s", 5, gtkserver.pre, gtkserver.handle, fresult, ptrstr, gtkserver.post);
 }
 else {
-    if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, atoi(call->argamount), &ffi_type_double, argtypes) == FFI_OK) {
+    if (Prep_Cif(&cif, call, &ffi_type_double, argtypes, argptr) == FFI_OK) {
 	#ifdef GTK_SERVER_UNIX
 	ffi_call(&cif, func, &dresult, argptr);
 	#elif GTK_SERVER_WIN32
@@ -3445,6 +3484,8 @@ int item;			/* If handle from client is given start parsing at item = 1, else it
 struct utsname pf;              /* For gtk_server_os */
 char *arg_type;                 /* Used by VARARGS */
 int in_varargs_list = 0;        /* In case we are in a varargs list of arguments */
+int variadic;                   /* Used by gtk_server_define_variadic */
+int argbase;                    /* Position of first argument type in a definition */
 int position = 0;               /* For gtk_server_pack to keep position in memory layout */
 
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
@@ -3931,7 +3972,10 @@ if (inputdata != NULL) {
     #endif
     /* Check if we have a GTK function (re-)definition. As you can see both 'redefine' and 'define' follow the same
      * path. But the redefine has been here for a long time and I want to maintain backwards compatibility. */
-    else if (!strcmp("gtk_server_redefine", gtk_api_call) || !strcmp("gtk_server_define", gtk_api_call)) {
+    else if (!strcmp("gtk_server_redefine", gtk_api_call) || !strcmp("gtk_server_define", gtk_api_call)
+	    || !strcmp("gtk_server_redefine_variadic", gtk_api_call) || !strcmp("gtk_server_define_variadic", gtk_api_call)) {
+	/* Variadic definitions have the amount of fixed arguments before the argument types */
+	variadic = (strstr(gtk_api_call, "_variadic") != NULL);
 	/* Yes, find the first argument */
 	if ((arg = parse_data(list, ++item)) == NULL){
 	    Print_Error("%s", 1, "\nERROR: Cannot find argument in GTK_SERVER_REDEFINE!");
@@ -3960,10 +4004,16 @@ if (inputdata != NULL) {
 	    else {
 		/* Forgot to put this here - thanks to Leonardo Cecchi for finding this bug */
 		strncpy(Call_Found->argamount, Trim_String(parse_data(list, item)), MAX_DIG-1);
+		argbase = item + 1;
+		if (variadic) {
+		    if (parse_data(list, argbase) == NULL || atoi(parse_data(list, argbase)) < 0 || atoi(parse_data(list, argbase)) > atoi(parse_data(list, item)))
+			Print_Error("%s", 1, "\nERROR: Missing or invalid amount of fixed arguments in GTK redefinition!");
+		    Call_Found->fixedargs = atoi(parse_data(list, argbase++));
+		}
 		/* Now start reading the arguments */
 		for (i = 0; i < atoi(parse_data(list, item)); i++){
-		    if(parse_data(list, i + 5) != NULL) {
-                        if(!strcmp(Trim_String(parse_data(list, i + 5)), "VARARGS")) {
+		    if(parse_data(list, i + argbase) != NULL) {
+                        if(!strcmp(Trim_String(parse_data(list, i + argbase)), "VARARGS")) {
                             snprintf(Call_Found->argamount, MAX_DIG, "%d", MAX_ARGS);
                             for(j = i; j < MAX_ARGS; j++){
                                 Call_Found->args[j] = (char*)realloc(Call_Found->args[j], 8);
@@ -3972,8 +4022,8 @@ if (inputdata != NULL) {
                             break;
                         }
                         else {
-			    Call_Found->args[i] = (char*)realloc(Call_Found->args[i], (strlen(parse_data(list, i + 5))+1)*sizeof(char));
-			    strcpy(Call_Found->args[i], Trim_String(parse_data(list, i + 5)));
+			    Call_Found->args[i] = (char*)realloc(Call_Found->args[i], (strlen(parse_data(list, i + argbase))+1)*sizeof(char));
+			    strcpy(Call_Found->args[i], Trim_String(parse_data(list, i + argbase)));
                         }
 		    }
 		    else Print_Error("%s", 1, "\nERROR: Missing argument in GTK redefinition!");
@@ -3984,6 +4034,7 @@ if (inputdata != NULL) {
 	else {
 	    Call_Found = (CONFIG*)malloc(sizeof(CONFIG));
 	    Call_Found->name = strdup(arg);
+	    Call_Found->fixedargs = -1;
 	    /* Get next term: callback signal type */
 	    if (parse_data(list, ++item) == NULL) Print_Error("%s", 1, "\nERROR: Missing callbacktype in GTK definition!");
 	    else {
@@ -4002,15 +4053,21 @@ if (inputdata != NULL) {
 		Print_Error("%s%d%s", 3, "\nERROR: GTK definition cannot have more than ", MAX_ARGS, " arguments!");
 	    else {
 		strncpy(Call_Found->argamount, Trim_String(parse_data(list, item)), MAX_DIG-1);
+		argbase = item + 1;
+		if (variadic) {
+		    if (parse_data(list, argbase) == NULL || atoi(parse_data(list, argbase)) < 0 || atoi(parse_data(list, argbase)) > atoi(parse_data(list, item)))
+			Print_Error("%s", 1, "\nERROR: Missing or invalid amount of fixed arguments in GTK definition!");
+		    Call_Found->fixedargs = atoi(parse_data(list, argbase++));
+		}
 		/* Arguments to NULL, then get the separate arguments */
 		for (i = 0; i < MAX_ARGS; i++){
 		    Call_Found->args[i] = NULL;
 		}
 		/* Now get the separate arguments */
 		for (i = 0; i < atoi(parse_data(list, item)); i++){
-		    if(parse_data(list, i + 5) != NULL) {
-			Call_Found->args[i] = (char*)malloc((strlen(parse_data(list, i + 5))+1)*sizeof(char));
-			strcpy(Call_Found->args[i], Trim_String(parse_data(list, i + 5)));
+		    if(parse_data(list, i + argbase) != NULL) {
+			Call_Found->args[i] = (char*)malloc((strlen(parse_data(list, i + argbase))+1)*sizeof(char));
+			strcpy(Call_Found->args[i], Trim_String(parse_data(list, i + argbase)));
 		    }
 		    else Print_Error("%s", 1, "\nERROR: Missing argument in GTK definition!");
 		}
@@ -5842,6 +5899,8 @@ char *retstr = NULL;
 char *in = NULL;
 /* Define list for CONFIGURATION settings */
 CONFIG *Gtk_Api_Config;
+/* Set when parsing a VARIADIC_FUNCTION_NAME */
+int variadic;
 /* Define list for macro definitions */
 MACRO *Macro_Defs;
 BODY *Body_Text;
@@ -6390,8 +6449,9 @@ while (fgets (line, MAX_LEN, configfile) != NULL){
 	    }
 	    libs[lib_counter] = NULL;
 	}
-	/* Check if we have a GTK function definition */
-	else if (!strncmp(line, "FUNCTION_NAME", 13)){
+	/* Check if we have a GTK function definition, variadic functions also specify the amount of fixed arguments */
+	else if (!strncmp(line, "FUNCTION_NAME", 13) || !strncmp(line, "VARIADIC_FUNCTION_NAME", 22)){
+	    variadic = !strncmp(line, "VARIADIC_FUNCTION_NAME", 22);
 	    strtok(line, "=");
 	    api_name = strdup(Trim_String(strtok(NULL, ",")));
 	    if (api_name != NULL) {
@@ -6417,6 +6477,14 @@ while (fgets (line, MAX_LEN, configfile) != NULL){
 		if (cache == NULL) Print_Error("%s%d", 2, "\nERROR: Missing argument amount in configfile at line: ", count_line);
 		else strncpy(Gtk_Api_Config->argamount, Trim_String(cache), MAX_DIG-1);
 		if (atoi(Gtk_Api_Config->argamount) > MAX_ARGS) Print_Error("%s%d%s%d", 4, "\nERROR: GTK definition cannot have more than ", MAX_ARGS, " arguments!\n\nError in configfile at line: ", count_line);
+		/* Get next term for variadic functions: amount of fixed arguments */
+		Gtk_Api_Config->fixedargs = -1;
+		if (variadic) {
+		    cache = strtok(NULL, ",");
+		    if (cache == NULL || atoi(cache) < 0 || atoi(cache) > atoi(Gtk_Api_Config->argamount))
+			Print_Error("%s%d", 2, "\nERROR: Missing or invalid amount of fixed arguments in configfile at line: ", count_line);
+		    else Gtk_Api_Config->fixedargs = atoi(cache);
+		}
 		/* Arguments to NULL, then get the separate arguments */
 		for (i = 0; i < MAX_ARGS; i++){
 		    Gtk_Api_Config->args[i] = NULL;
@@ -6667,6 +6735,7 @@ if (gtkserver.behave & 1){
 	fprintf(stdout, "(%s)", Gtk_Api_Config->callbacktype);
 	fprintf(stdout, "  %s", Gtk_Api_Config->returnvalue);
 	fprintf(stdout, " = %s", Gtk_Api_Config->name);
+	if (Gtk_Api_Config->fixedargs >= 0) fprintf(stdout, " (variadic after %d)", Gtk_Api_Config->fixedargs);
 
 	for (i = 0; i < atoi(Gtk_Api_Config->argamount); i++) {
 	    fprintf(stdout,", %s", Gtk_Api_Config->args[i]);

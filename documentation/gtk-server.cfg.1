@@ -92,6 +92,20 @@ by the GTK\-server during startup. Examples:
 .br
 .B FUNCTION_NAME = XtVaCreateWidget, NONE, WIDGET, 4, STRING, CLASS, WIDGET, VARARGS
 .TP
+\fBVARIADIC_FUNCTION_NAME = <func>, <callback>, <type>, <amount>, <fixed>, <arg1>...<argx>\fP
+Same as FUNCTION_NAME, but for a C function with a variable argument list, like g_object_set or
+gtk_list_store_set. The <fixed> value is the amount of fixed arguments, i.e. the arguments before
+the '...' in the C prototype. The remaining arguments are passed as variable arguments, which some
+platforms (for example MacOSX on arm64) pass differently from fixed arguments. Defining such a function
+with FUNCTION_NAME may then lead to wrong results or a crash. Integer arguments in the variable part
+are passed with the size of a pointer, so 0 can be used as NULL terminator.
+
+The variadic property is kept when the function is redefined with gtk_server_redefine. Functions using
+the VARARGS argument type do not need this definition. Example:
+
+.br
+.B VARIADIC_FUNCTION_NAME = g_object_set, NONE, NONE, 4, 2, WIDGET, STRING, INT, NULL
+.TP
 \fBENUM_NAME = <name>, <integer>\fP
 The GTK and also the XForms API use a lot of predefined constants and enumerations. With this optional
 configuration line these can be defined also. The clientscript can use the same enumeration name, and the

@@ -377,6 +377,14 @@ function is not available in the configfile then it will be defined as a new GTK
 The syntax to redefine a GTK function is similar to the syntax used in the 'gtk-server.cfg' file.
 Please refer to the man page of 'gtk-server.cfg' for details.
 .TP
+.B gtk_server_define_variadic <gtk function> <signal> <returnvalue> <amount> <fixed> <arg1> ... <argn>
+.br
+.B gtk_server_redefine_variadic <gtk function> <signal> <returnvalue> <amount> <fixed> <arg1> ... <argn>
+.br
+These calls (re)define a function with a variable argument list, like g_object_set. The <fixed> value
+is the amount of fixed arguments. The syntax is similar to the VARIADIC_FUNCTION_NAME definition in the
+\&'gtk-server.cfg' file. Please refer to the man page of 'gtk-server.cfg' for details.
+.TP
 .B gtk_server_require <libraryname>
 Checks if <libraryname> is available on the system or not. If <libraryname> is not available, this call
 will return a "0", else it will return a "1". If <libraryname> is not mentioned in the configfile, this call

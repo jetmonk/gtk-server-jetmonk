@@ -12,8 +12,9 @@ script, build a GTK user interface. The script sends commands like
 
 The programs, the configfile and the `gtk_server_*` commands keep their
 original names, so scripts written for GTK-server 2.4.7 work with this
-variant. It may diverge further from upstream, for example by supporting
-only the libffi calling method. Such differences are listed below.
+variant. It does diverge from upstream where that helps: for example, support
+for the C/Invoke calling library has been removed. All differences are listed
+below.
 
 ## Origin
 
@@ -42,9 +43,13 @@ The commits after the 2.4.7 baseline:
    variable argument list, such as `g_object_set` or `gtk_list_store_set`,
    were called as if their argument list were fixed. On Apple Silicon this
    passes the variable arguments in the wrong place, so these calls silently
-   did nothing or crashed. They are now called through libffi's
-   `ffi_prep_cif_var`. The configfile gets a new definition that gives the
-   amount of fixed arguments:
+   did nothing or crashed. They are now called correctly with each of the
+   calling libraries GTK-server can be built with: libffi (with
+   `ffi_prep_cif_var`), dyncall (with its variadic call modes) and ffcall.
+   ffcall cannot call variadic functions by itself, so on Apple Silicon a
+   workaround puts the variable arguments where variadic functions expect
+   them. The configfile gets a new definition that gives the amount of fixed
+   arguments:
 
    ```
    VARIADIC_FUNCTION_NAME = g_object_set, NONE, NONE, 4, 2, WIDGET, STRING, INT, NULL
@@ -69,6 +74,11 @@ The commits after the 2.4.7 baseline:
    [demo-gtk4/mmap.bash](demo-gtk4/mmap.bash) animates a 512x512 picture
    from bash at about 140 frames per second on an Apple Silicon Mac.
 
+4. **C/Invoke removed.** GTK-server could be built with one of four calling
+   libraries. C/Invoke has not been developed since about 2007 and does not
+   support arm64, so it is gone; `configure --with-cinv` stops with an error.
+   libffi, ffcall and dyncall remain.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:
@@ -83,6 +93,9 @@ configure builds every backend it finds, for example `gtk-server-gtk3` and
 `gtk-server-gtk4`. Add `--with-gtk3` or `--with-gtk4` to build only one.
 With Homebrew, use `/opt/homebrew` instead of `/opt/local`.
 
+configure uses libffi if it is installed. To use another calling library,
+add `--with-ffcall` or `--with-dyncall`.
+
 To run the demos without installing, put `src` first on your `PATH` and make
 sure GTK-server finds `src/gtk-server.cfg`, for example by copying it into the
 demo directory. The `.bash` demos need bash 4 or later, because they use
@@ -96,15 +109,13 @@ PATH="$PWD/../src:$PATH" /opt/local/bin/bash demo-stdin.bash
 
 ## Status
 
-Tested on macOS 26 (arm64) with the GTK3 and GTK4 backends, using the libffi
-backend (the default).
+Tested on macOS 26 (arm64) with the GTK3 and GTK4 backends, built with each of
+libffi (the default), ffcall 2.5 and dyncall 1.4.
 
 Not tested:
 
 - Linux, Intel Macs, Windows. The changes are meant to be portable, but
   nobody has run them there yet.
-- The ffcall, C/Invoke and dyncall backends. The variadic fix only covers
-  libffi.
 - Library mode (`libgtk-server.so`) and the Motif backend. Both build.
 
 Known problems inherited from 2.4.7:

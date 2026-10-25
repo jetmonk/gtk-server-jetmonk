@@ -52,8 +52,15 @@ The commits after the 2.4.7 baseline:
    arguments:
 
    ```
+   # C: void g_object_set(gpointer object, const gchar *first_property_name, ...)
+   # name, callback, return type, total args, fixed args (before the ...), arg types
    VARIADIC_FUNCTION_NAME = g_object_set, NONE, NONE, 4, 2, WIDGET, STRING, INT, NULL
    ```
+
+   Here the first 2 argument types, `WIDGET` and `STRING`, are the fixed
+   arguments `object` and `first_property_name`. The rest, `INT` and `NULL`,
+   are passed as the variable arguments `...`: a property value and the `NULL`
+   that ends the list.
 
    Scripts can do the same at runtime with `gtk_server_define_variadic` and
    `gtk_server_redefine_variadic`. A function that a script redefines with

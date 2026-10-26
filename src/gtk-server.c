@@ -2636,15 +2636,15 @@ char *Widget_GUI(FUNC_POINTER, CONFIG *call, ffi_type * argtypes[], void * argpt
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
-GtkWidget *widget;		/* Temporary widget holder */
+GtkWidget *widget = NULL;		/* Temporary widget holder */
 #elif GTK_SERVER_XF
 ENUM *Enum_Found;
-FL_OBJECT *widget;
+FL_OBJECT *widget = NULL;
 #elif GTK_SERVER_MOTIF
 STR *Str_Found;
-Widget widget;
+Widget widget = NULL;
 #else
-void *widget;
+void *widget = NULL;
 #endif
 char *ptrstr;
 
@@ -2735,7 +2735,7 @@ dcFree(vm);
 char *Pointer_OBJ(FUNC_POINTER, CONFIG *call, ffi_type * argtypes[], void * argptr[])
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
-void *pointer;
+void *pointer = NULL;
 char *ptrstr;
 
 /* Initialize the cif, realize function */
@@ -2780,7 +2780,7 @@ dcFree(vm);
 char *String_GUI(FUNC_POINTER, CONFIG *call, ffi_type * argtypes[], void * argptr[])
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
-char *result;				/* temp result holder */
+char *result = NULL;				/* temp result holder */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
@@ -2828,7 +2828,7 @@ dcFree(vm);
 #elif GTK_SERVER_FFI
 char *Bool_GUI(FUNC_POINTER, CONFIG * call, ffi_type * argtypes[], void * argptr[])
 {
-int boolean;			/* Temporary bool holder */
+int boolean = 0;			/* Temporary bool holder */
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
 char *ptrstr;
 
@@ -2875,7 +2875,7 @@ dcFree(vm);
 char *Int_GUI(FUNC_POINTER, CONFIG * call, ffi_type * argtypes[], void * argptr[])
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
-unsigned int result;			/* Temporary result holder */
+unsigned int result = 0;			/* Temporary result holder */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
@@ -2919,7 +2919,7 @@ dcFree(vm);
 char *Long_GUI(FUNC_POINTER, CONFIG * call, ffi_type * argtypes[], void * argptr[])
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
-unsigned long result;			/* Temporary result holder */
+unsigned long result = 0;			/* Temporary result holder */
 char *ptrstr;
 
 /* Initialize the cif, realize function */
@@ -2978,8 +2978,8 @@ else {
 char *Float_GUI(FUNC_POINTER, CONFIG *call, ffi_type * argtypes[], void * argptr[], int type)
 {
 ffi_cif cif;		/* Contains pointer to FFI_CIF structure */
-float fresult;			/* Temporary result holder */
-double dresult;
+float fresult = 0;			/* Temporary result holder */
+double dresult = 0;
 char *ptrstr;
 
 ptrstr = Return_Pointer_Args(call);

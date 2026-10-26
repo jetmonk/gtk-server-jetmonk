@@ -1476,10 +1476,11 @@ if (retstr == NULL) {
 /* vsnprintf returns amount of chars that should be written regardless given size */
 amount = vsnprintf(retstr, memsize, fmt, args);
 
-if (amount > memsize) {
+/* The result and its NULL byte must fit, so 'amount' equal to 'memsize' is too long too */
+if (amount >= memsize) {
     retstr = (char*)realloc(retstr, (amount+2)*sizeof(char));
     if (retstr == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to allocate returnvalue: ", strerror(errno));
-    memsize = amount;
+    memsize = amount + 1;
     /* Put back the va_list as it has been used already, using a portable va_copy */
     memcpy (&args, &backup, sizeof (va_list));
     vsnprintf(retstr, memsize, fmt, args);

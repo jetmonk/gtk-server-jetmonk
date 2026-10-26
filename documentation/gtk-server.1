@@ -327,6 +327,19 @@ Finally, when <argument> equals to 3, the direction of the scrollbutton(s) on th
 be returned: '0' means up, '1' down, '2' left and '3' means right. It is required to connect
 the 'scroll-event' signal to the widget.
 
+GTK4 has no 'button-press-event' and 'scroll-event'. Instead, add an event controller to the widget and
+connect its signal: 'pressed' or 'released' of a GtkGestureClick, 'motion' or 'enter' of a
+GtkEventControllerMotion, or 'scroll' of a GtkEventControllerScroll. The coordinates are in pixels from the
+widget's top left corner. Example:
+
+.br
+gtk_server_connect <gestureID> "pressed" "clicked"
+.br
+gtk_widget_add_controller <widgetID> <gestureID>
+
+where <gestureID> comes from 'gtk_gesture_click_new'. Use 'gtk_gesture_single_set_button <gestureID> 0'
+to see all mouse buttons, not only the left one.
+
 For XForms it is necessary to connect the 'ButtonPressMask' and 'PointerMotion' mask to the form, and for
 Motif the signal 'XmNinputCallback' should be connected to the DrawingArea.
 
@@ -441,6 +454,9 @@ is not recognized by GTK. For example:
 .br
 gtk_server_connect <widgetID> "key-press-event" "keypressed"
 
+In GTK4, connect the 'key-pressed' or 'key-released' signal of a GtkEventControllerKey that was added to
+the widget with 'gtk_widget_add_controller'. The widget needs the keyboard focus.
+
 For XForms it is necessary to connect at least the 'KeyPressMask' event mask to the form. XForms uses the standard event masks from
 the X header files. If the 'KeyPressMask' has a value of 1, it should be connected as follows:
 
@@ -465,6 +481,8 @@ should be connected to the DrawingArea. This function is not available when the 
 
 .br
 GTK: gtk_server_connect <widgetID> "key-press-event" "keypressed"
+
+GTK4: any of the event controller signals described at 'gtk_server_mouse' and 'gtk_server_key'.
 
 Motif: gtk_server_connect <DrawingArea> XmNinputCallback "keypressed"
 

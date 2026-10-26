@@ -2013,6 +2013,80 @@ return FALSE;
 }
 #endif
 
+#if GTK_SERVER_GTK4x
+/* GTK4 reports the pointer and the keyboard through event controllers, which the client
+ * creates and adds to a widget, for example with gtk_gesture_click_new and
+ * gtk_widget_add_controller. Their signals pass coordinates as doubles, which the generic
+ * callbacks cannot receive, so these signals get callbacks of their own. They keep what
+ * gtk_server_mouse, gtk_server_key and gtk_server_state report. */
+static void Controller_Event(GtkEventController *controller, GdkModifierType state, gpointer data)
+{
+Current_Object.object = gtk_event_controller_get_widget(controller);
+Current_Object.state = (long)controller;
+Current_Object.text = (char*)data;
+Current_Object.key_state = state;
+/* Keep the event until the client asks for it */
+Queue_Event();
+}
+
+/* GtkGestureClick: pressed, released */
+void gtk4_click_callback(GtkGestureClick *gesture, int n_press, double x, double y, gpointer data)
+{
+Current_Object.mousex = x;
+Current_Object.mousey = y;
+Current_Object.button = gtk_gesture_single_get_current_button(GTK_GESTURE_SINGLE(gesture));
+Controller_Event(GTK_EVENT_CONTROLLER(gesture), gtk_event_controller_get_current_event_state(GTK_EVENT_CONTROLLER(gesture)), data);
+}
+
+/* GtkEventControllerMotion: motion, enter */
+void gtk4_motion_callback(GtkEventControllerMotion *motion, double x, double y, gpointer data)
+{
+Current_Object.mousex = x;
+Current_Object.mousey = y;
+Controller_Event(GTK_EVENT_CONTROLLER(motion), gtk_event_controller_get_current_event_state(GTK_EVENT_CONTROLLER(motion)), data);
+}
+
+/* GtkEventControllerKey: key-pressed, key-released. FALSE lets other widgets see the key. */
+gboolean gtk4_key_callback(GtkEventControllerKey *keys, guint keyval, guint keycode, GdkModifierType state, gpointer data)
+{
+Current_Object.key = keyval;
+Controller_Event(GTK_EVENT_CONTROLLER(keys), state, data);
+return FALSE;
+}
+
+/* GtkEventControllerScroll: scroll, as a direction like the GDK scroll events */
+gboolean gtk4_scroll_callback(GtkEventControllerScroll *scroll, double dx, double dy, gpointer data)
+{
+if (dy < 0) Current_Object.scroll = GDK_SCROLL_UP;
+else if (dy > 0) Current_Object.scroll = GDK_SCROLL_DOWN;
+else if (dx < 0) Current_Object.scroll = GDK_SCROLL_LEFT;
+else Current_Object.scroll = GDK_SCROLL_RIGHT;
+Controller_Event(GTK_EVENT_CONTROLLER(scroll), gtk_event_controller_get_current_event_state(GTK_EVENT_CONTROLLER(scroll)), data);
+return FALSE;
+}
+
+/* Connect SIGNAL of OBJECT to its callback above if it is a controller signal; returns 0 if it is not */
+int Connect_Controller(GObject *object, char *signal, gpointer data, int after)
+{
+GCallback callback = NULL;
+
+if (GTK_IS_GESTURE_CLICK(object) && (!strcmp(signal, "pressed") || !strcmp(signal, "released")))
+    callback = G_CALLBACK(gtk4_click_callback);
+else if (GTK_IS_EVENT_CONTROLLER_MOTION(object) && (!strcmp(signal, "motion") || !strcmp(signal, "enter")))
+    callback = G_CALLBACK(gtk4_motion_callback);
+else if (GTK_IS_EVENT_CONTROLLER_KEY(object) && (!strcmp(signal, "key-pressed") || !strcmp(signal, "key-released")))
+    callback = G_CALLBACK(gtk4_key_callback);
+else if (GTK_IS_EVENT_CONTROLLER_SCROLL(object) && !strcmp(signal, "scroll"))
+    callback = G_CALLBACK(gtk4_scroll_callback);
+else
+    return 0;
+
+if (after) g_signal_connect_after(object, signal, callback, data);
+else g_signal_connect(object, signal, callback, data);
+return 1;
+}
+#endif
+
 /*************************************************************************************************/
 
 void gtk_server_callback_extra2(GtkWidget *widget, gpointer *data1)
@@ -4551,6 +4625,11 @@ if (inputdata != NULL) {
 	    if (i) g_signal_connect(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_scroll_callback_false), (gpointer)List_Sigs->data);
 	    else g_signal_connect(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_scroll_callback), (gpointer)List_Sigs->data);
 	}
+	#if GTK_SERVER_GTK4x
+	else if (Connect_Controller((GObject*)(atol(widget)), Trim_String(signal), (gpointer)List_Sigs->data, 0)) {
+	    /* Connected to a controller callback */
+	}
+	#endif
 	else {
 	    type = G_OBJECT_TYPE((GtkObject*)(atol(widget)));
 	    /* Also accepts a detailed signal name, like notify::label */
@@ -4575,9 +4654,9 @@ if (inputdata != NULL) {
 	}
 	else {
 	    switch (atoi(arg)){
-		case 0: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.mousex, gtkserver.post);
+		case 0: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, (int)Current_Object.mousex, gtkserver.post);
 		    break;
-		case 1: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, Current_Object.mousey, gtkserver.post);
+		case 1: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, (int)Current_Object.mousey, gtkserver.post);
 		    break;
 		case 2: retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, (int)Current_Object.button, gtkserver.post);
 		    break;
@@ -4829,6 +4908,11 @@ if (inputdata != NULL) {
 	    if (i) g_signal_connect_after(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_scroll_callback_false), (gpointer)List_Sigs->data);
 	    else g_signal_connect_after(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_scroll_callback), (gpointer)List_Sigs->data);
 	}
+	#if GTK_SERVER_GTK4x
+	else if (Connect_Controller((GObject*)(atol(widget)), Trim_String(signal), (gpointer)List_Sigs->data, 1)) {
+	    /* Connected to a controller callback */
+	}
+	#endif
 	else {
 	    type = G_OBJECT_TYPE((GtkWidget*)(atol(widget)));
 	    /* Also accepts a detailed signal name, like notify::label */

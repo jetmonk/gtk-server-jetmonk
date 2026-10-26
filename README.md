@@ -131,6 +131,20 @@ The commits after the 2.4.7 baseline:
    the time grew with the square of the input length: one megabyte of BASE64
    data took about 45 seconds to decode. It now takes about 0.03 seconds.
 
+6. **An icon in the macOS Dock.** A program outside an application bundle
+   gets the generic black executable icon in the Dock. A script can now set
+   its own icon, after creating its first window:
+
+   ```
+   # Set the Dock icon from an image file: PNG, JPEG, TIFF, ICNS, PDF, ...
+   #     Returns 1 if the icon was set, 0 if the file could not be read.
+   #     On other systems, or the console and Motif backends, it does nothing and returns 0.
+   gtk_server_macos_icon <file>        -> 1 or 0
+   ```
+
+   The code is in [src/macos.m](src/macos.m), in Objective-C. configure adds
+   it, and the AppKit framework, to the GTK3 and GTK4 builds on macOS only.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

@@ -161,6 +161,10 @@ The commits after the 2.4.7 baseline:
    property change. GTK-server used to stop with "Cannot find signal" for
    them.
 
+9. **Long string results come back whole.** Every result longer than 1024
+   characters, such as the text of a long label or a text buffer, lost its
+   last character.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

@@ -188,6 +188,17 @@ The commits after the 2.4.7 baseline:
     gtk_server_state                              -> the modifier keys (GdkModifierType)
     ```
 
+11. **Commands end at their newline.** GTK-server took whatever one read
+    returned as one command. Commands sent together ran as one, and a long
+    command that arrived in pieces, such as BASE64 data from a slow client,
+    could run before it was complete. Now each line is one command, in the
+    STDIN and TCP modes. So a client can send many commands before reading
+    the replies, which still come one per command, in order: 3000
+    `gtk_server_echo` calls take 1.5 µs each this way instead of 11 µs.
+    Don't send more than a few hundred commands ahead, though: if the
+    unread replies fill the pipe, GTK-server waits for the client to read
+    them, and a client still writing would then wait too.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

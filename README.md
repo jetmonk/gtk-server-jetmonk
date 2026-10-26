@@ -165,6 +165,29 @@ The commits after the 2.4.7 baseline:
    characters, such as the text of a long label or a text buffer, lost its
    last character.
 
+10. **Mouse and keyboard events in GTK4.** GTK4 no longer has
+    `button-press-event` and `key-press-event`; widgets get pointer and key
+    events through event controllers, whose signals pass the coordinates as
+    doubles that GTK-server's generic callbacks could not receive.
+    `gtk_server_mouse`, `gtk_server_key` and `gtk_server_state` now work with
+    the controllers' signals: `pressed` and `released` of a `GtkGestureClick`,
+    `motion` and `enter` of a `GtkEventControllerMotion`, `key-pressed` and
+    `key-released` of a `GtkEventControllerKey`, and `scroll` of a
+    `GtkEventControllerScroll`. Also, `gtk_server_mouse` printed GTK4's
+    coordinates as if they were integers, which gave nonsense.
+
+    ```
+    gtk_gesture_click_new                         -> <gesture>
+    gtk_widget_add_controller <widget> <gesture>
+    gtk_server_connect <gesture> pressed clicked
+    ...
+    gtk_server_callback wait                      -> clicked
+    gtk_server_mouse 0                            -> x, in pixels from the widget's left
+    gtk_server_mouse 1                            -> y
+    gtk_server_mouse 2                            -> the button, 1 for the primary one
+    gtk_server_state                              -> the modifier keys (GdkModifierType)
+    ```
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

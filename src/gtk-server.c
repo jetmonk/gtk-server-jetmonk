@@ -1035,11 +1035,29 @@ GtkObject *obj_address[MAX_ARGS];
 #elif GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GtkWidget *obj_address[MAX_ARGS];
 #if GTK_SERVER_GTK4x
+/* The pointer's position over the widget that sent the signal, or 0, 0 when the sender is
+ * not a widget on screen (a GtkSelectionModel, a widget not shown yet). It used to read the
+ * position over a new, unshown toplevel surface made for each signal. */
 #define DEV_MANAGER do { \
-    GdkSeat *device_manager = gdk_display_get_default_seat(gtk_widget_get_display(widget)); \
-    GdkSurface *surface = gdk_surface_new_toplevel(gtk_widget_get_display(widget)); \
-    gdk_surface_get_device_position(surface, gdk_seat_get_pointer(device_manager), &Current_Object.mousex, &Current_Object.mousey, NULL); \
-    gdk_surface_destroy(surface); \
+    GtkNative *native; \
+    GdkSurface *surface; \
+    GdkSeat *seat; \
+    double sx, sy, nx, ny; \
+    graphene_point_t surface_point, widget_point; \
+    Current_Object.mousex = 0; \
+    Current_Object.mousey = 0; \
+    if (GTK_IS_WIDGET(widget) && (native = gtk_widget_get_native((GtkWidget*)widget)) != NULL \
+	    && (surface = gtk_native_get_surface(native)) != NULL \
+	    && (seat = gdk_display_get_default_seat(gtk_widget_get_display((GtkWidget*)widget))) != NULL \
+	    && gdk_seat_get_pointer(seat) != NULL \
+	    && gdk_surface_get_device_position(surface, gdk_seat_get_pointer(seat), &sx, &sy, NULL)) { \
+	gtk_native_get_surface_transform(native, &nx, &ny); \
+	surface_point = GRAPHENE_POINT_INIT(sx - nx, sy - ny); \
+	if (gtk_widget_compute_point(GTK_WIDGET(native), (GtkWidget*)widget, &surface_point, &widget_point)) { \
+	    Current_Object.mousex = widget_point.x; \
+	    Current_Object.mousey = widget_point.y; \
+	} \
+    } \
 } while(0)
 #elif GTK_MINOR_VERSION<20
 #define DEV_MANAGER do { \

@@ -155,6 +155,12 @@ The commits after the 2.4.7 baseline:
    holds 256 events; if the client falls that far behind, the oldest are
    dropped.
 
+8. **Detailed signal names.** `gtk_server_connect` and
+   `gtk_server_connect_after` now accept signals with a detail, like
+   `notify::label` or `notify::selected`, so a client can react to any
+   property change. GTK-server used to stop with "Cannot find signal" for
+   them.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

@@ -3699,6 +3699,7 @@ GtkType type;
 #elif GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 GSignalQuery query;
 GType type;
+GQuark detail;          /* Detail of a signal name like notify::label */
 #endif
 #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
 unsigned int signal_id;
@@ -4551,8 +4552,9 @@ if (inputdata != NULL) {
 	}
 	else {
 	    type = G_OBJECT_TYPE((GtkObject*)(atol(widget)));
-	    signal_id = g_signal_lookup(signal, type);
-	    if (signal_id == 0) Print_Error("\nERROR: Cannot find signal %s in GTK_SERVER_CONNECT!", 1, signal);
+	    /* Also accepts a detailed signal name, like notify::label */
+	    if (!g_signal_parse_name(Trim_String(signal), type, &signal_id, &detail, FALSE))
+		Print_Error("\nERROR: Cannot find signal %s in GTK_SERVER_CONNECT!", 1, signal);
 	    g_signal_query(signal_id, &query);
 	    if (i) g_signal_connect(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_server_callbacks[query.n_params+7]), (gpointer)List_Sigs->data);
 	    else g_signal_connect(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_server_callbacks[query.n_params]), (gpointer)List_Sigs->data);
@@ -4828,8 +4830,9 @@ if (inputdata != NULL) {
 	}
 	else {
 	    type = G_OBJECT_TYPE((GtkWidget*)(atol(widget)));
-	    signal_id = g_signal_lookup(signal, type);
-	    if (signal_id == 0) Print_Error("\nERROR: Cannot find signal %s in GTK_SERVER_CONNECT_AFTER!", 1, signal);
+	    /* Also accepts a detailed signal name, like notify::label */
+	    if (!g_signal_parse_name(Trim_String(signal), type, &signal_id, &detail, FALSE))
+		Print_Error("\nERROR: Cannot find signal %s in GTK_SERVER_CONNECT_AFTER!", 1, signal);
 	    g_signal_query(signal_id, &query);
 	    if (i) g_signal_connect_after(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_server_callbacks[query.n_params+7]), (gpointer)List_Sigs->data);
 	    else g_signal_connect_after(GTK_OBJECT((GtkWidget*)(atol(widget))), Trim_String(signal), G_CALLBACK(gtk_server_callbacks[query.n_params]), (gpointer)List_Sigs->data);

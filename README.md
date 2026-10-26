@@ -199,6 +199,23 @@ The commits after the 2.4.7 baseline:
     unread replies fill the pipe, GTK-server waits for the client to read
     them, and a client still writing would then wait too.
 
+12. **Several definitions of one function.** A definition's name may end in
+    `@` and a tag. It calls the function named before the `@`, but is a
+    definition of its own, so one function can have several definitions with
+    different argument types at once:
+
+    ```
+    gtk_server_define_variadic g_object_set@int    NONE NONE 4 2 WIDGET STRING INT NULL
+    gtk_server_define_variadic g_object_set@string NONE NONE 4 2 WIDGET STRING STRING NULL
+    g_object_set@int <widget> "margin-top" 4 NULL
+    g_object_set@string <widget> "label" "Hello" NULL
+    ```
+
+    Before, a client setting properties of different types had to redefine
+    `g_object_set` again and again, an extra round trip each time. Names
+    without `@` work as before. GTK-server also looks each function up in the
+    libraries only once now, instead of at every call.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

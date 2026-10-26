@@ -1103,10 +1103,11 @@ return data;
 
 int is_value (char *var)
 {
-int i;
+int i, len;
 
 if (var != NULL){
-    for (i = 0; i < strlen(var); i++){
+    len = strlen(var);
+    for (i = 0; i < len; i++){
 	if ((*(var + i) < 48 || *(var + i) > 57) && *(var + i) != 32 && *(var + i) != 9 && *(var + i) != 45 && *(var + i) != 43) return 0;
     }
     return 1;
@@ -3072,6 +3073,7 @@ while (base != NULL){
 PARSED *parse_line(char *data)
 {
 PARSED *args = NULL;
+size_t len = strlen(data);	/* Unescaping in place never shortens data while it is read */
 int start_idx = 0;
 int curr_idx = 0;
 int quote_dst_idx = 0;
@@ -3085,12 +3087,12 @@ const int after_escape 		= 1 << 4;
 const int after_string 		= 1 << 5;
 
 /* loop over the contents */
-for ( ; curr_idx <= strlen(data); ++curr_idx ){
+for ( ; curr_idx <= len; ++curr_idx ){
 
     c = data[curr_idx];
 
     if ( state & in_plain ){
-	if ( c == ' ' || c == '\t' || c == '\n' || c == '\r' || curr_idx == strlen(data)){
+	if ( c == ' ' || c == '\t' || c == '\n' || c == '\r' || curr_idx == len){
 	    args = parse_append(args, mystrndup(data + start_idx, curr_idx - start_idx ) );
 	    state ^= in_plain;
 	    state ^= after_string;
@@ -3223,6 +3225,7 @@ static long totalsize = MAX_LEN;
 unsigned char in[4], out[3], v;
 int i, len;
 int cur = 0;
+size_t arglen = strlen(arg);
 int posit = 0;
 
 /* Only executed at first-time use */
@@ -3231,17 +3234,17 @@ if (decoded == NULL) {
     if (decoded == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to allocate Base64 returnvalue: ", strerror(errno));
 }
 
-while (cur < strlen(arg)){
-    for (len = 0, i = 0; i < 4 && (cur < strlen(arg)); i++){
+while (cur < arglen){
+    for (len = 0, i = 0; i < 4 && (cur < arglen); i++){
 	v = 0;
-	while (cur < strlen(arg) && v == 0){
+	while (cur < arglen && v == 0){
 	    v = (unsigned char) arg[cur];
 	    cur++;
 	    v = (unsigned char) ((v < 43 || v > 122) ? 0 : cd64[ v - 43 ]);
 	    if (v) {v = (unsigned char) ((v == '$') ? 0 : v - 61);}
 	}
 
-	if(cur <= strlen(arg)){
+	if(cur <= arglen){
 	    len++;
 	    if (v) in[i] = (unsigned char)(v - 1);
 	    else in[i] = 0;
@@ -3976,7 +3979,7 @@ if (inputdata != NULL) {
 	if(strlen(arg)>16){
 	    Print_Error("%s", 1, "\nERROR: Argument may not exceed 16 characters in GTK_SERVER_SET_C_STRING_ESCAPING!");
 	}
-	for(i=0; i<strlen(arg); i++){
+	for(i=0; arg[i] != '\0'; i++){
 	    gtkserver.escapes[i] = arg[i];
 	}
 	gtkserver.escapes[i] = '\0';

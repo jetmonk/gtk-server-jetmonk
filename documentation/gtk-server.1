@@ -538,6 +538,13 @@ Same as gtk_server_mmap_texture, but copies the image into a new GdkPixbuf. The 
 .TP
 .B gtk_server_mmap_free <handle>
 Removes the buffer and its file. Textures and pixbufs made from the buffer remain valid.
+.TP
+.B gtk_server_macos_icon <file>
+Sets the icon of the GTK\-server in the MacOSX Dock to the image in <file>, which can be any format the
+system reads, like PNG, JPEG, TIFF, ICNS or PDF. Without this, a GTK\-server which is not inside an
+application bundle shows the generic executable icon. Call it after creating the first window. Returns 1 if
+the icon was set and 0 if the file could not be read. On other systems, and for the console and Motif
+backends, it does nothing and returns 0.
 
 .SH "FILES"
 .I gtk-server.cfg

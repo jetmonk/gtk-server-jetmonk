@@ -627,6 +627,8 @@ ac_includes_default="\
 ac_header_c_list=
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+MACOS_LIBS
+MACOS_SRC
 MACOSX
 STRIP
 DEFAULT
@@ -5434,6 +5436,14 @@ if test "$darwin" = yes; then
 else
     MACOSX="no"
 fi
+
+
+# MacOSX specific code in Objective-C, for the GTK3 and GTK4 backends
+if test "$darwin" = yes; then
+    MACOS_SRC="macos.m"
+    MACOS_LIBS="-framework AppKit"
+fi
+
 
 
 ac_config_files="$ac_config_files Makefile"

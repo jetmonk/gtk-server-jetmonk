@@ -16,6 +16,8 @@ TARGET =	@TARGET@
 SOTARGET =	@SOTARGET@
 DEFAULT = 	@DEFAULT@
 MACOSX =	@MACOSX@
+MACOS_SRC =	@MACOS_SRC@
+MACOS_LIBS =	@MACOS_LIBS@
 GTK4_CFLAGS =   @GTK4_CFLAGS@
 GTK3_CFLAGS =   @GTK3_CFLAGS@
 GTK2_CFLAGS =   @GTK2_CFLAGS@
@@ -34,19 +36,19 @@ SOLINK =        @SOLINK@
 
 all : clean $(SOTARGET) $(TARGET)
 
-gtk-server-gtk4 : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK4x $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(GTK4_LIBS) $(SSLFLAGS) $(LDFLAGS)
+gtk-server-gtk4 : gtk-server.c $(MACOS_SRC)
+	$(CC) -DGTK_SERVER_GTK4x $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(MACOS_SRC) $(GTK4_LIBS) $(SSLFLAGS) $(LDFLAGS) $(MACOS_LIBS)
 	$(STRIP) $@
 
-libgtk-server-gtk4.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK4x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(GTK4_LIBS) $(SSLFLAGS) $(LDFLAGS)
+libgtk-server-gtk4.so : gtk-server.c $(MACOS_SRC)
+	$(CC) -DGTK_SERVER_GTK4x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK4_CFLAGS) -o $@ gtk-server.c $(MACOS_SRC) $(GTK4_LIBS) $(SSLFLAGS) $(LDFLAGS) $(MACOS_LIBS)
 
-gtk-server-gtk3 : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK3x $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS)
+gtk-server-gtk3 : gtk-server.c $(MACOS_SRC)
+	$(CC) -DGTK_SERVER_GTK3x $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(MACOS_SRC) $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS) $(MACOS_LIBS)
 	$(STRIP) $@
 
-libgtk-server-gtk3.so : gtk-server.c
-	$(CC) -DGTK_SERVER_GTK3x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS)
+libgtk-server-gtk3.so : gtk-server.c $(MACOS_SRC)
+	$(CC) -DGTK_SERVER_GTK3x -DGTK_SERVER_LIBRARY -shared $(CFLAGS) $(GTK3_CFLAGS) -o $@ gtk-server.c $(MACOS_SRC) $(GTK3_LIBS) $(SSLFLAGS) $(LDFLAGS) $(MACOS_LIBS)
 
 gtk-server-gtk2 : gtk-server.c
 	$(CC) -DGTK_SERVER_GTK2x $(CFLAGS) $(GTK2_CFLAGS) -o $@ gtk-server.c $(GTK2_LIBS) $(SSLFLAGS) $(LDFLAGS) -Wno-deprecated-declarations

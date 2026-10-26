@@ -407,6 +407,14 @@ else
 fi
 AC_SUBST(MACOSX)
 
+# MacOSX specific code in Objective-C, for the GTK3 and GTK4 backends
+if test "$darwin" = yes; then
+    MACOS_SRC="macos.m"
+    MACOS_LIBS="-framework AppKit"
+fi
+AC_SUBST(MACOS_SRC)
+AC_SUBST(MACOS_LIBS)
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 

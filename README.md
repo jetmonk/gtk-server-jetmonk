@@ -102,7 +102,9 @@ The commits after the 2.4.7 baseline:
    `dd conv=notrunc`, and other languages can map it themselves.
    [demo-gtk4/mmap.bash](demo-gtk4/mmap.bash) and
    [demo-gtk3/mmap.bash](demo-gtk3/mmap.bash) animate a 512x512 picture
-   from bash, at about 140 and 175 frames per second on an Apple Silicon Mac.
+   from bash, at about 140 (GTK4) and 210 (GTK3) frames per second on an
+   Apple Silicon Mac. Run with `base64` as first argument, they send the same
+   frames as BASE64 text instead, which manages about 10 frames per second.
 
    GTK-server removes its buffer files when it exits, also after an error,
    but not when it is killed by a signal. The files are named
@@ -112,6 +114,11 @@ The commits after the 2.4.7 baseline:
    libraries. C/Invoke has not been developed since about 2007 and does not
    support arm64, so it is gone; `configure --with-cinv` stops with an error.
    libffi, ffcall and dyncall remain.
+
+5. **Fast parsing of long commands.** The command parser and the BASE64
+   decoder measured the length of their input again for every character, so
+   the time grew with the square of the input length: one megabyte of BASE64
+   data took about 45 seconds to decode. It now takes about 0.03 seconds.
 
 ## Building on macOS
 
@@ -152,10 +159,8 @@ Not tested:
   nobody has run them there yet.
 - Library mode (`libgtk-server.so`) and the Motif backend. Both build.
 
-Known problems inherited from 2.4.7:
+Known problem inherited from 2.4.7:
 
-- Large `BASE64` arguments are very slow: one megabyte takes more than
-  20 seconds, because the parser rescans the input for every character.
 - The stock definition `FUNCTION_NAME = g_object_set, ..., WIDGET, STRING, INT, NULL`
   declares the value as `INT`. Passing a widget through it truncates the
   pointer on 64-bit systems. The GTK4 demos redefine it with `WIDGET`.

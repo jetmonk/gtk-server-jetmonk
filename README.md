@@ -145,6 +145,16 @@ The commits after the 2.4.7 baseline:
    The code is in [src/macos.m](src/macos.m), in Objective-C. configure adds
    it, and the AppKit framework, to the GTK3 and GTK4 builds on macOS only.
 
+7. **No more lost events.** GTK-server kept only the last signal: when one
+   command caused several, such as closing a window (`close-request`, then
+   `destroy`) or setting an entry's text twice, `gtk_server_callback`
+   reported only the last one. Signals are now queued, and
+   `gtk_server_callback` reports them one by one, oldest first, before it
+   waits for new ones. `gtk_server_callback_value`, `gtk_server_key` and
+   `gtk_server_mouse` give the data of the event reported last. The queue
+   holds 256 events; if the client falls that far behind, the oldest are
+   dropped.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

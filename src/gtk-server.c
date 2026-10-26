@@ -854,6 +854,41 @@ struct callback {
 /* Define global instance of current callback */
 struct callback Current_Object;
 
+/* Events not yet reported to the client, oldest first. Signals often fire during a
+ * command, several in a row, and used to overwrite each other in Current_Object. Each
+ * callback now queues a copy, and gtk_server_callback reports them one by one.
+ * Current_Object keeps the event reported last, for gtk_server_callback_value,
+ * gtk_server_key and gtk_server_mouse. */
+#define MAX_EVENTS 256
+struct callback Event_Queue[MAX_EVENTS];
+int Event_First = 0;
+int Event_Count = 0;
+struct callback Reported_Object;
+
+void Queue_Event(void)
+{
+/* When the client does not keep up, drop the oldest event */
+if (Event_Count == MAX_EVENTS) {
+    Event_First = (Event_First + 1) % MAX_EVENTS;
+    Event_Count--;
+}
+Event_Queue[(Event_First + Event_Count) % MAX_EVENTS] = Current_Object;
+Event_Count++;
+/* Current_Object stays on the event reported last */
+Current_Object = Reported_Object;
+}
+
+/* Take the oldest queued event into Current_Object; returns 0 if there is none */
+int Next_Event(void)
+{
+if (Event_Count == 0) return 0;
+Reported_Object = Event_Queue[Event_First];
+Event_First = (Event_First + 1) % MAX_EVENTS;
+Event_Count--;
+Current_Object = Reported_Object;
+return 1;
+}
+
 /* Structure to define the behaviour of GTK-server */
 struct behaviour {
     int count_fork;		/* Keeps track of forking when in TCP mode */
@@ -1747,6 +1782,8 @@ if (data->reason == XmCR_INPUT) {
     Current_Object.button = data->event->xbutton.button;
     Current_Object.key = XkbKeycodeToKeysym(XtDisplay(w), data->event->xkey.keycode, 0, 0);
     Current_Object.key_state = data->event->xkey.state;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 }
@@ -1780,6 +1817,8 @@ Current_Object.t5 = (char*)data5;
 Current_Object.t6 = (char*)data6;
 Current_Object.t7 = (char*)data7;
 Current_Object.text = NULL;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 /*************************************************************************************************/
@@ -1810,6 +1849,8 @@ Current_Object.button = event->button;
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 gboolean gtk_button_callback_false(GtkWidget *widget, gpointer *data1, gpointer *data2)
@@ -1838,6 +1879,8 @@ Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
 
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -1868,6 +1911,8 @@ Current_Object.key_state = event->state;
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 gboolean gtk_key_callback_false(GtkWidget *widget, gpointer *data1, gpointer *data2)
@@ -1898,6 +1943,8 @@ Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
 
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -1928,6 +1975,8 @@ Current_Object.scroll = scroll->direction;
 Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 gboolean gtk_scroll_callback_false(GtkWidget *widget, gpointer *data1, gpointer *data2)
@@ -1957,6 +2006,8 @@ Current_Object.object = widget;
 Current_Object.state = (long)widget;
 Current_Object.text = (char*)data2;
 
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 #endif
@@ -1977,6 +2028,8 @@ Current_Object.state = (long)widget;
 Current_Object.p1 = (int)(long)data1;
 Current_Object.t1 = (char*)data1;
 Current_Object.text = (char*)data1;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 void gtk_server_callback_extra3(GtkWidget *widget, gpointer *data1, gpointer *data2)
@@ -1995,6 +2048,8 @@ Current_Object.p2 = (int)(long)data2;
 Current_Object.t1 = (char*)data1;
 Current_Object.t2 = (char*)data2;
 Current_Object.text = (char*)data2;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 void gtk_server_callback_extra4(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3)
@@ -2015,6 +2070,8 @@ Current_Object.t1 = (char*)data1;
 Current_Object.t2 = (char*)data2;
 Current_Object.t3 = (char*)data3;
 Current_Object.text = (char*)data3;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 void gtk_server_callback_extra5(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3, gpointer *data4)
@@ -2037,6 +2094,8 @@ Current_Object.t2 = (char*)data2;
 Current_Object.t3 = (char*)data3;
 Current_Object.t4 = (char*)data4;
 Current_Object.text = (char*)data4;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 void gtk_server_callback_extra6(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3, gpointer *data4, gpointer *data5)
@@ -2061,6 +2120,8 @@ Current_Object.t3 = (char*)data3;
 Current_Object.t4 = (char*)data4;
 Current_Object.t5 = (char*)data5;
 Current_Object.text = (char*)data5;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 void gtk_server_callback_extra7(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3, gpointer *data4, gpointer *data5, gpointer *data6)
@@ -2087,6 +2148,8 @@ Current_Object.t4 = (char*)data4;
 Current_Object.t5 = (char*)data5;
 Current_Object.t6 = (char*)data6;
 Current_Object.text = (char*)data6;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 void gtk_server_callback_extra8(GtkWidget *widget, gpointer *data1, gpointer *data2, gpointer *data3, gpointer *data4, gpointer *data5, gpointer *data6, gpointer *data7)
@@ -2115,6 +2178,8 @@ Current_Object.t5 = (char*)data5;
 Current_Object.t6 = (char*)data6;
 Current_Object.t7 = (char*)data7;
 Current_Object.text = (char*)data7;
+/* Keep the event until the client asks for it */
+Queue_Event();
 }
 
 gboolean gtk_server_callback_extra2_bool(GtkWidget *widget, gpointer *data1)
@@ -2131,6 +2196,8 @@ Current_Object.state = (long)widget;
 Current_Object.p1 = (int)(long)data1;
 Current_Object.t1 = (char*)data1;
 Current_Object.text = (char*)data1;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -2150,6 +2217,8 @@ Current_Object.p2 = (int)(long)data2;
 Current_Object.t1 = (char*)data1;
 Current_Object.t2 = (char*)data2;
 Current_Object.text = (char*)data2;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -2171,6 +2240,8 @@ Current_Object.t1 = (char*)data1;
 Current_Object.t2 = (char*)data2;
 Current_Object.t3 = (char*)data3;
 Current_Object.text = (char*)data3;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -2194,6 +2265,8 @@ Current_Object.t2 = (char*)data2;
 Current_Object.t3 = (char*)data3;
 Current_Object.t4 = (char*)data4;
 Current_Object.text = (char*)data4;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -2219,6 +2292,8 @@ Current_Object.t3 = (char*)data3;
 Current_Object.t4 = (char*)data4;
 Current_Object.t5 = (char*)data5;
 Current_Object.text = (char*)data5;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -2246,6 +2321,8 @@ Current_Object.t4 = (char*)data4;
 Current_Object.t5 = (char*)data5;
 Current_Object.t6 = (char*)data6;
 Current_Object.text = (char*)data6;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 
@@ -2275,6 +2352,8 @@ Current_Object.t5 = (char*)data5;
 Current_Object.t6 = (char*)data6;
 Current_Object.t7 = (char*)data7;
 Current_Object.text = (char*)data7;
+/* Keep the event until the client asks for it */
+Queue_Event();
 return FALSE;
 }
 #endif
@@ -3679,50 +3758,57 @@ if (inputdata != NULL) {
 	/* Yes, find the first argument */
 	if ((arg = parse_data(list, ++item)) != NULL){
 	    while (1){
-		/* Let GTK wait for an event */
-		if (!strcmp (arg, "WAIT") || !strcmp (arg, "wait") || !strcmp(arg, "1")) {
-		    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-		    gtk_main_iteration();
-                    #elif GTK_SERVER_GTK4x
-                    g_main_context_iteration(NULL, 1);
-		    #elif GTK_SERVER_XF
-		    Current_Object.object = fl_do_forms();
-		    Current_Object.state = (long)Current_Object.object;
-		    #elif GTK_SERVER_MOTIF
-		    XtRealizeWidget(gtkserver.toplevel);
-		    XtAppProcessEvent(gtkserver.app, XtIMAll);
-		    #endif
-		}
-		/* Update asynchronously */
-		if (!strcmp (arg, "UPDATE") || !strcmp (arg, "update") || !strcmp(arg, "2")) {
-		    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
-		    while (gtk_events_pending()){
+		/* Report events which are queued already, oldest first, before waiting */
+		if (!Next_Event()) {
+		    /* Let GTK wait for an event */
+		    if (!strcmp (arg, "WAIT") || !strcmp (arg, "wait") || !strcmp(arg, "1")) {
+			#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
 			gtk_main_iteration();
-			/* Go out when a widget is recognized by GTK-server */
-			if ((long)Current_Object.state != GTK_SERVER_NONE) break;
-		    }
-                    #elif GTK_SERVER_GTK4x
-		    while (g_main_context_pending(NULL)){
-                        g_main_context_iteration(NULL, 0);
-			/* Go out when a widget is recognized by GTK-server */
-			if ((long)Current_Object.state != GTK_SERVER_NONE) break;
-		    }
-		    #elif GTK_SERVER_XF
-		    Current_Object.object = fl_check_forms();
-		    Current_Object.state = (long)Current_Object.object;
-		    #elif GTK_SERVER_MOTIF
-		    XtRealizeWidget(gtkserver.toplevel);
-		    while(XtAppPending(gtkserver.app)){
+			#elif GTK_SERVER_GTK4x
+			g_main_context_iteration(NULL, 1);
+			#elif GTK_SERVER_XF
+			Current_Object.object = fl_do_forms();
+			Current_Object.state = (long)Current_Object.object;
+			if ((long)Current_Object.state != GTK_SERVER_NONE) Queue_Event();
+			#elif GTK_SERVER_MOTIF
+			XtRealizeWidget(gtkserver.toplevel);
 			XtAppProcessEvent(gtkserver.app, XtIMAll);
-			/* Go out when a widget is recognized by GTK-server */
-			if ((long)Current_Object.state != GTK_SERVER_NONE) break;
+			#endif
 		    }
-		    #endif
+		    /* Update asynchronously */
+		    if (!strcmp (arg, "UPDATE") || !strcmp (arg, "update") || !strcmp(arg, "2")) {
+			#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
+			while (gtk_events_pending()){
+			    gtk_main_iteration();
+			    /* Go out when GTK-server has an event */
+			    if (Event_Count > 0) break;
+			}
+			#elif GTK_SERVER_GTK4x
+			while (g_main_context_pending(NULL)){
+			    g_main_context_iteration(NULL, 0);
+			    /* Go out when GTK-server has an event */
+			    if (Event_Count > 0) break;
+			}
+			#elif GTK_SERVER_XF
+			Current_Object.object = fl_check_forms();
+			Current_Object.state = (long)Current_Object.object;
+			if ((long)Current_Object.state != GTK_SERVER_NONE) Queue_Event();
+			#elif GTK_SERVER_MOTIF
+			XtRealizeWidget(gtkserver.toplevel);
+			while(XtAppPending(gtkserver.app)){
+			    XtAppProcessEvent(gtkserver.app, XtIMAll);
+			    /* Go out when GTK-server has an event */
+			    if (Event_Count > 0) break;
+			}
+			#endif
+		    }
+		    Next_Event();
 		}
-		/* Find out the callback state for the given object for all arguments to gtk_server_callback */
+		/* Report the event now in Current_Object, if any */
 		if ((long)Current_Object.state != GTK_SERVER_NONE) {
-		    /* Signal found */
+		    /* Signal found; mark it reported, so the next round does not report it again */
 		    Current_Object.state = GTK_SERVER_NONE;
+		    Reported_Object.state = GTK_SERVER_NONE;
 		    /* Convert long value containing widget ref. to string */
 		    if (Current_Object.text == NULL) retstr = Print_Result("%s%s%ld%s", 4, gtkserver.pre, gtkserver.handle, (long)Current_Object.object, gtkserver.post);
 		    /* Or return self-defined string */

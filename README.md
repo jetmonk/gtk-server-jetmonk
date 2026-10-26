@@ -216,6 +216,14 @@ The commits after the 2.4.7 baseline:
     without `@` work as before. GTK-server also looks each function up in the
     libraries only once now, instead of at every call.
 
+13. **Signals from objects that are not widgets, in GTK4.** Connecting a
+    signal of, for example, a `GtkSingleSelection` gave GTK critical
+    warnings at each signal, because GTK-server took the object for a
+    widget to read the pointer position. And for widgets, that position was
+    read over a new, never shown window, so it was meaningless. It is now
+    the position over the widget that sent the signal, and 0, 0 for other
+    objects.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

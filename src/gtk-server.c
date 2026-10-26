@@ -889,6 +889,59 @@ Current_Object = Reported_Object;
 return 1;
 }
 
+/* Input from a client stream (STDIN, TCP). A command ends at its newline, but one read
+ * may return several commands, or part of one. Bytes read are kept in an INPUT buffer, and
+ * Input_Line takes the commands out one by one, so each runs whole and on its own. */
+typedef struct {
+    char *data;
+    long len;		/* Bytes in data */
+    long size;		/* Bytes allocated */
+    long taken;		/* Bytes of data already returned by Input_Line */
+} INPUT;
+
+void Print_Error(char *fmt, int no, ...);
+
+void Input_Add(INPUT *input, char *bytes, long count)
+{
+if (input->len + count + 1 > input->size) {
+    input->size = (input->len + count + 1) * 2;
+    input->data = (char*)realloc(input->data, input->size);
+    if (input->data == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read input: ", strerror(errno));
+}
+memcpy(input->data + input->len, bytes, count);
+input->len += count;
+}
+
+/* The next complete command without its newline, or NULL if none has arrived yet. The
+ * string stays valid until the next call. */
+char *Input_Line(INPUT *input)
+{
+char *newline;
+
+if (input->taken > 0) {
+    memmove(input->data, input->data + input->taken, input->len - input->taken);
+    input->len -= input->taken;
+    input->taken = 0;
+}
+if (input->len == 0) return NULL;
+newline = memchr(input->data, '\n', input->len);
+if (newline == NULL) return NULL;
+*newline = '\0';
+input->taken = newline - input->data + 1;
+return input->data;
+}
+
+/* At the end of the input: an unfinished last command, or NULL if there is none */
+char *Input_Rest(INPUT *input)
+{
+char *rest = Input_Line(input);
+
+if (rest != NULL || input->len == 0) return rest;
+input->data[input->len] = '\0';
+input->taken = input->len;
+return input->data;
+}
+
 /* Structure to define the behaviour of GTK-server */
 struct behaviour {
     int count_fork;		/* Keeps track of forking when in TCP mode */
@@ -6183,6 +6236,10 @@ fd_set rfds;				/* Needed for file descriptor polling in case debug window is us
 struct timeval tv;
 #endif
 
+INPUT input = { NULL, 0, 0, 0 };	/* Commands read from a client stream, see Input_Line */
+char *command = NULL;
+int end_of_input = 0;
+
 #ifdef GTK_SERVER_UNIX
 socklen_t sin_size, addr_len;
 #ifdef GTK_SERVER_SOCK_LONG
@@ -7099,13 +7156,11 @@ if (gtkserver.mode == 1) {
     /* This is the main input loop via STDIN */
     while (1) {
 
-	/* Debug window */
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
-	if (gtkserver.behave & 512) {
-	    /* Poll descriptor to see if data is available */
-	    while(debug_step == 0)
-	    {
-		debug_step = debug_run;
+	/* Read until a whole command has arrived */
+	while ((command = Input_Line(&input)) == NULL) {
+	    /* Debug window: keep it going while waiting for input */
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	    if (gtkserver.behave & 512) {
 		do {
 		    FD_ZERO(&rfds);
 		    FD_SET(STDIN_FILENO, &rfds);
@@ -7116,43 +7171,48 @@ if (gtkserver.mode == 1) {
 		    update_gui;
 		} while (select(STDIN_FILENO+1, &rfds, NULL, NULL, &tv) == 0);
 	    }
+	    #endif
+
+	    i = read(STDIN_FILENO, line, MAX_LEN);
+
+	    if (i == -1 && errno == EINTR) continue;
+	    if (i < 0) Print_Error("%s%s", 2, "\nError in reading from STDIN: ", strerror(errno));
+
+	    /* End of input: run an unfinished last command, then stop */
+	    if (i == 0) {
+		if ((command = Input_Rest(&input)) == NULL) exit(EXIT_SUCCESS);
+		end_of_input = 1;
+		break;
+	    }
+	    Input_Add(&input, line, i);
+	}
+
+	/* Debug window: wait until the user steps or runs */
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	if (gtkserver.behave & 512) {
+	    while (debug_step == 0) {
+		debug_step = debug_run;
+		FD_ZERO(&rfds);
+		FD_SET(STDIN_FILENO, &rfds);
+		tv.tv_usec = 1000;
+		tv.tv_sec = 0;
+		update_gui;
+		select(STDIN_FILENO+1, &rfds, NULL, NULL, &tv);
+	    }
 	    if(debug_run || debug_step == 1) { debug_step = 0; }
 	}
 	#endif
 
-	/* Main STDIN interface handling */
-	len = 0;
-	do {
-	    i = read(STDIN_FILENO, line, MAX_LEN);
-
-	    /* Fix by Sebastiaan van Erk */
-	    if (i == -1) Print_Error("%s%s", 2, "\nError in reading from STDIN: ", strerror(errno));
-
-	    if (i == 0) exit(EXIT_SUCCESS);
-
-	    /* Realloc preserves contents, add one for \0 which is added later */
-	    if (len + i > MAX_LEN*page + 1) {page++; in = realloc(in, MAX_LEN*page + 1);}
-
-	    if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from STDIN: ", strerror(errno));
-
-	    memcpy(in + len, line, i);
-	    len += i;
-	}
-	while (i == MAX_LEN || i == 1);
-
-	/* Make sure we have a NULL terminated character array */
-	if (len >= 0) in[len] = '\0';
-
 	/* If logging is enabled, write incoming text to log */
 	if (logfile != NULL){
-	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
+	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(command));
 	    fflush(logfile);
 	}
 	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
-	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
+	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(command), 3); }
 	#endif
 
-	retstr = Call_Realize(Trim_String(in));
+	retstr = Call_Realize(Trim_String(command));
 
 	/* If logging is enabled, write returnstring to log */
 	if (logfile != NULL){
@@ -7167,6 +7227,9 @@ if (gtkserver.mode == 1) {
 	fprintf(stdout, "%s", retstr);
 
 	fflush(stdout);
+
+	/* The input ended after the last command */
+	if (end_of_input) exit(EXIT_SUCCESS);
     }
 }
 
@@ -7521,59 +7584,63 @@ while (1){
 	/* We enter the mainloop - read incoming text */
 	while(1){
 
-	    /* Debug window */
-	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
-	    if (gtkserver.behave & 512) {
-		/* Poll descriptor to see if data is available */
-		while(debug_step == 0)
-		{
-		    debug_step = debug_run;
-		    do {
-			FD_ZERO(&rfds);
-			FD_SET(new_fd, &rfds);
-			/* Set a time to avoid 100% CPU load */
-			tv.tv_usec = 1000;
-			tv.tv_sec = 0;
-			/* Update the debugging GUI */
-			update_gui;
-		    } while (select(new_fd+1, &rfds, NULL, NULL, &tv) == 0);
-		}
-		if(debug_run || debug_step == 1) { debug_step = 0; }
-	    }
-	    #endif
+	    /* Read until a whole command has arrived */
+	    while ((command = Input_Line(&input)) == NULL) {
+	        /* Debug window: keep it going while waiting for input */
+	        #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	        if (gtkserver.behave & 512) {
+	    	do {
+	    	    FD_ZERO(&rfds);
+	    	    FD_SET(new_fd, &rfds);
+	    	    /* Set a time to avoid 100% CPU load */
+	    	    tv.tv_usec = 1000;
+	    	    tv.tv_sec = 0;
+	    	    /* Update the debugging GUI */
+	    	    update_gui;
+	    	} while (select(new_fd+1, &rfds, NULL, NULL, &tv) == 0);
+	        }
+	        #endif
 
-	    len = 0;
-	    do {
 		numbytes = recv(new_fd, buf, MAX_LEN, 0);
 
-		if (numbytes < 0) Print_Error("%s%s", 2, "\nError in reading from TCP: ", strerror(errno));
+	        if (numbytes == -1 && errno == EINTR) continue;
+	        if (numbytes < 0) Print_Error("%s%s", 2, "\nError in reading from TCP: ", strerror(errno));
 
-    		/* Realloc preserves contents, add one for \0 which is added later */
-		if (len + numbytes > MAX_LEN*page + 1) {page++; in = realloc(in, MAX_LEN*page + 1);}
-
-		if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from TCP: ", strerror(errno));
-
-		memcpy(in + len, buf, numbytes);
-		len += numbytes;
+	        /* End of input: run an unfinished last command, then stop */
+	        if (numbytes == 0) {
+	    	if ((command = Input_Rest(&input)) == NULL) exit(EXIT_SUCCESS);
+	    	end_of_input = 1;
+	    	break;
+	        }
+	        Input_Add(&input, buf, numbytes);
 	    }
-	    while (numbytes == MAX_LEN);
 
-	    /* If disconnected, quit the gtk-server */
-	    if (numbytes == 0) exit(EXIT_SUCCESS);
-
-    	    /* Make sure we have a NULL terminated character array */
-	    if (len > 0) in[len] = '\0';
+	    /* Debug window: wait until the user steps or runs */
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	    if (gtkserver.behave & 512) {
+	        while (debug_step == 0) {
+	    	debug_step = debug_run;
+	    	FD_ZERO(&rfds);
+	    	FD_SET(new_fd, &rfds);
+	    	tv.tv_usec = 1000;
+	    	tv.tv_sec = 0;
+	    	update_gui;
+	    	select(new_fd+1, &rfds, NULL, NULL, &tv);
+	        }
+	        if(debug_run || debug_step == 1) { debug_step = 0; }
+	    }
+	    #endif
 
 	    /* If logging is enabled, write incoming text to log */
 	    if (logfile != NULL){
-		fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
+		fprintf(logfile, "SCRIPT: %s\n", Trim_String(command));
 		fflush(logfile);
 	    }
 	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
-	    if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
+	    if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(command), 3); }
 	    #endif
 
-	    retstr = Call_Realize(Trim_String(in));
+	    retstr = Call_Realize(Trim_String(command));
 
 	    /* If logging is enabled, write returnstring to log */
 	    if (logfile != NULL){
@@ -7588,6 +7655,9 @@ while (1){
 	    numbytes = send(new_fd, retstr, strlen(retstr), 0);
 
 	    if (numbytes < 0) Print_Error("%s%s", 2, "\nError in sending to TCP: ", strerror(errno));
+
+	    /* The client disconnected after the last command */
+	    if (end_of_input) exit(EXIT_SUCCESS);
 	}
     #ifdef GTK_SERVER_UNIX
     }
@@ -7721,13 +7791,11 @@ if (gtkserver.mode == 6) {
     /* We enter the mainloop - read incoming text */
     while(1){
 
-	/* Debug window */
-	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
-	if (gtkserver.behave & 512) {
-	    /* Poll descriptor to see if data is available */
-	    while(debug_step == 0)
-	    {
-		debug_step = debug_run;
+	/* Read until a whole command has arrived */
+	while ((command = Input_Line(&input)) == NULL) {
+	    /* Debug window: keep it going while waiting for input */
+	    #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	    if (gtkserver.behave & 512) {
 		do {
 		    FD_ZERO(&rfds);
 		    FD_SET(sockfd, &rfds);
@@ -7738,12 +7806,8 @@ if (gtkserver.mode == 6) {
 		    update_gui;
 		} while (select(sockfd+1, &rfds, NULL, NULL, &tv) == 0);
 	    }
-	    if(debug_run || debug_step == 1) { debug_step = 0; }
-	}
-	#endif
+	    #endif
 
-	len = 0;
-	do {
 	    if (gtkserver.behave & 192){
 		#ifdef GTK_SERVER_USE_SSL
 		numbytes = SSL_read(ssl, buf, MAX_LEN);
@@ -7753,34 +7817,44 @@ if (gtkserver.mode == 6) {
 	    }
 	    else numbytes = recv(sockfd, buf, MAX_LEN, 0);
 
+	    if (numbytes == -1 && errno == EINTR) continue;
 	    if (numbytes < 0) Print_Error("%s%s", 2, "\nError in reading from SOCKET: ", strerror(errno));
 
-	    /* Realloc preserves contents, add one for \0 which is added later */
-	    if (len + numbytes > MAX_LEN*page + 1) {page++; in = realloc(in, MAX_LEN*page + 1);}
-
-	    if (in == NULL) Print_Error("%s%s", 2, "\nNo sufficient memory to read from SOCKET: ", strerror(errno));
-
-	    memcpy(in + len, buf, numbytes);
-	    len += numbytes;
+	    /* End of input: run an unfinished last command, then stop */
+	    if (numbytes == 0) {
+		if ((command = Input_Rest(&input)) == NULL) exit(EXIT_SUCCESS);
+		end_of_input = 1;
+		break;
+	    }
+	    Input_Add(&input, buf, numbytes);
 	}
-	while (numbytes == MAX_LEN);
 
-	/* If disconnected, quit the gtk-server */
-	if (numbytes == 0) exit(EXIT_SUCCESS);
-
-	/* Make sure we have a NULL terminated character array */
-	if (len > 0) in[len] = '\0';
+	/* Debug window: wait until the user steps or runs */
+	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
+	if (gtkserver.behave & 512) {
+	    while (debug_step == 0) {
+		debug_step = debug_run;
+		FD_ZERO(&rfds);
+		FD_SET(sockfd, &rfds);
+		tv.tv_usec = 1000;
+		tv.tv_sec = 0;
+		update_gui;
+		select(sockfd+1, &rfds, NULL, NULL, &tv);
+	    }
+	    if(debug_run || debug_step == 1) { debug_step = 0; }
+	}
+	#endif
 
 	/* If logging is enabled, write incoming text to log */
 	if (logfile != NULL){
-	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(in));
+	    fprintf(logfile, "SCRIPT: %s\n", Trim_String(command));
 	    fflush(logfile);
 	}
 	#if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x || GTK_SERVER_GTK4x || GTK_SERVER_XF || GTK_SERVER_MOTIF
-	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(in), 3); }
+	if (gtkserver.behave & 512) { scroll_to_end(debug_view, Trim_String(command), 3); }
 	#endif
 
-	retstr = Call_Realize(Trim_String(in));
+	retstr = Call_Realize(Trim_String(command));
 
 	/* If logging is enabled, write returnstring to log */
 	if (logfile != NULL){
@@ -7802,6 +7876,9 @@ if (gtkserver.mode == 6) {
 	else numbytes = send(sockfd, retstr, strlen(retstr), 0);
 
 	if (numbytes < 0) Print_Error("%s%s", 2, "\nError in sending to SOCKET: ", strerror(errno));
+
+	/* The server disconnected after the last command */
+	if (end_of_input) exit(EXIT_SUCCESS);
     }
 }
 

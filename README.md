@@ -106,6 +106,17 @@ The commits after the 2.4.7 baseline:
    Apple Silicon Mac. Run with `base64` as first argument, they send the same
    frames as BASE64 text instead, which manages about 10 frames per second.
 
+   On GTK4, which cannot show a Cairo surface directly, a buffer can also be
+   drawn on with Cairo: create the surface on top of the buffer with
+   `cairo_image_surface_create_for_data <address> CAIRO_FORMAT_ARGB32 ...`,
+   draw, call `cairo_surface_flush`, and make a texture with the format
+   `BGRA_PREMULTIPLIED`, which is how Cairo stores its pixels on little-endian
+   machines. [demo-gtk4/cairo-mmap.bash](demo-gtk4/cairo-mmap.bash) draws
+   circling dots this way. Each Cairo call is one round trip of about 25
+   microseconds from bash, so about 600 Cairo calls fit in a frame at 60
+   frames per second. In a bash client, avoid `$(...)` in the drawing loop:
+   each one starts a process, which costs more than the drawing.
+
    GTK-server removes its buffer files when it exits, also after an error,
    but not when it is killed by a signal. The files are named
    `gtk-server-mmap-*`, in `/dev/shm` on Linux and in `$TMPDIR` elsewhere.

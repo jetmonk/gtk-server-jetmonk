@@ -674,8 +674,25 @@ typedef struct config_struct {
     char argamount[MAX_DIG];
     int fixedargs;           /* variadic functions: amount of fixed arguments, otherwise -1 */
     char *args[MAX_ARGS];
+    void *symbol;            /* the C function, looked up on first use */
     UT_hash_handle hh;       /* makes this structure hashable */
 } CONFIG;
+
+/* A definition's name is the C function's name, optionally followed by '@' and a tag, so
+ * that one function can have several definitions with different argument types:
+ * g_object_set@int and g_object_set@string both call g_object_set. Returns the C name,
+ * newly allocated. */
+char *C_Function_Name(char *name)
+{
+char *at = strchr(name, '@');
+char *c_name;
+
+if (at == NULL) return strdup(name);
+c_name = (char*)malloc(at - name + 1);
+memcpy(c_name, name, at - name);
+c_name[at - name] = '\0';
+return c_name;
+}
 
 /* Needed for hashtable */
 struct config_struct *gtk_protos = NULL;
@@ -3803,6 +3820,7 @@ int in_varargs_list = 0;        /* In case we are in a varargs list of arguments
 int variadic;                   /* Used by gtk_server_define_variadic */
 int argbase;                    /* Position of first argument type in a definition */
 int varfixed;                   /* Position of the first variable argument, -1 if none */
+char *c_name;                   /* The C name of a definition with an @ tag */
 int position = 0;               /* For gtk_server_pack to keep position in memory layout */
 
 #if GTK_SERVER_FFI || GTK_SERVER_FFCALL
@@ -4439,6 +4457,7 @@ if (inputdata != NULL) {
 	    Call_Found = (CONFIG*)malloc(sizeof(CONFIG));
 	    Call_Found->name = strdup(arg);
 	    Call_Found->fixedargs = -1;
+	    Call_Found->symbol = NULL;
 	    /* Get next term: callback signal type */
 	    if (parse_data(list, ++item) == NULL) Print_Error("%s", 1, "\nERROR: Missing callbacktype in GTK definition!");
 	    else {
@@ -5004,14 +5023,16 @@ if (inputdata != NULL) {
 		if (!strcmp(Call_Found->args[i], "VARARGS")) { varfixed = i; break; }
 	    }
 	    if (varfixed >= atoi(Call_Found->argamount)) varfixed = -1;
-	    /* Search function in libraries */
+	    /* Search function in libraries, once per definition */
 	    #ifdef GTK_SERVER_UNIX
-	    i = 0;
-	    func = NULL;
-	    while (i < MAX_LIBS && func == NULL) {
-		if (handle[i] != NULL) *(void**)(&func) = (void*)FROMLIB(handle[i], Call_Found->name);
-		i++;
+	    if (Call_Found->symbol == NULL) {
+		c_name = C_Function_Name(Call_Found->name);
+		for (i = 0; i < MAX_LIBS && Call_Found->symbol == NULL; i++) {
+		    if (handle[i] != NULL) Call_Found->symbol = (void*)FROMLIB(handle[i], c_name);
+		}
+		free(c_name);
 	    }
+	    *(void**)(&func) = Call_Found->symbol;
 	    if (func == NULL) {
                 Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\n\tbut cannot be found in libraries!");
             }
@@ -5024,10 +5045,12 @@ if (inputdata != NULL) {
             #elif GTK_SERVER_WIN32
 	    i = 0;
 	    *func = NULL;
+	    c_name = C_Function_Name(Call_Found->name);
 	    while (i < MAX_LIBS && *func == NULL) {
-		if (handle[i] != NULL) *func = (FARPROC)GetProcAddress(handle[i], Call_Found->name);
+		if (handle[i] != NULL) *func = (FARPROC)GetProcAddress(handle[i], c_name);
 		i++;
 	    }
+	    free(c_name);
 	    if (*func == NULL) {
                 Print_Error ("%s%s%s", 3, "\nERROR: the function '", Call_Found->name, "' was defined\n\nbut cannot be found in libraries!");
             }
@@ -6770,6 +6793,7 @@ while (fgets (line, MAX_LEN, configfile) != NULL){
 		Gtk_Api_Config = (CONFIG*)malloc(sizeof(CONFIG));
 		/* Assign the found GTK definition */
 		Gtk_Api_Config->name = api_name;
+		Gtk_Api_Config->symbol = NULL;
 		/* Get next term: callback signal type */
 		cache = strtok(NULL, ",");
 		if (cache == NULL) Print_Error("%s%d", 2, "\nERROR: Missing callbacktype in configfile at line: ", count_line);

@@ -383,6 +383,19 @@ The returned result also can contain a combination of the above values. E.g. the
 This call defines a new GTK function. If the GTK function is already available in the configfile
 then it will be redefined automatically. The syntax to define a GTK function is similar to the
 syntax used in the 'gtk-server.cfg' file. Please refer to the man page of 'gtk-server.cfg' for details.
+
+The name may end in '@' and a tag of your choice. Such a definition calls the function named before
+the '@', but is a definition of its own, so one function can have several definitions with
+different argument types at the same time, without redefining it. For example:
+
+.br
+gtk_server_define_variadic g_object_set@int NONE NONE 4 2 WIDGET STRING INT NULL
+.br
+gtk_server_define_variadic g_object_set@string NONE NONE 4 2 WIDGET STRING STRING NULL
+.br
+g_object_set@int <widgetID> "margin-top" 4 NULL
+.br
+g_object_set@string <widgetID> "label" "Hello" NULL
 .TP
 .B gtk_server_redefine <gtk function> <signal> <returnvalue> <amount> <arg1> ... <argn>
 This call redefines a GTK function which is mentioned in the 'gtk-server.cfg' file. If the GTK

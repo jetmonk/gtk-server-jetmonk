@@ -1308,7 +1308,7 @@ char data[MAX_LEN] = { 0 };
         dialog = gtk_message_dialog_new(GTK_WINDOW(window), flags, GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE, "%s", data);
 	gtk_window_set_title(GTK_WINDOW(dialog), "GTK-server Error!");
         g_signal_connect(dialog, "response", G_CALLBACK(gtk_window_destroy), NULL);
-	gtk_widget_show(dialog);
+	gtk_widget_set_visible(dialog, TRUE);
     #elif defined(GTK_SERVER_GTK2x) || defined(GTK_SERVER_GTK3x)
 	GtkWidget *dialog, *window;
         /* Read arguments incoming in functionheader */
@@ -6234,7 +6234,7 @@ else {
             #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
             gtk_widget_show_all(debug_window);
             #elif GTK_SERVER_GTK4x
-            gtk_widget_show(debug_window);
+            gtk_widget_set_visible(debug_window, TRUE);
             #elif GTK_SERVER_XF
             fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
             #elif GTK_SERVER_MOTIF
@@ -6304,7 +6304,7 @@ if (!strncmp(Trim_String(user_data), "gtk_server_cfg", 14) || !strncmp(Trim_Stri
             #if GTK_SERVER_GTK1x || GTK_SERVER_GTK2x || GTK_SERVER_GTK3x
             gtk_widget_show_all(debug_window);
             #elif GTK_SERVER_GTK4x
-            gtk_widget_show(debug_window);
+            gtk_widget_set_visible(debug_window, TRUE);
             #elif GTK_SERVER_XF
             fl_show_form(debug_window, FL_PLACE_CENTER, FL_FULLBORDER, "GTK-server Debugger");
             #elif GTK_SERVER_MOTIF

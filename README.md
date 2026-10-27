@@ -255,6 +255,22 @@ The commits after the 2.4.7 baseline:
     </object>
     ```
 
+15. **Asynchronous calls: GTK4 dialogs.** GTK4's dialogs (`GtkFileDialog`,
+    `GtkAlertDialog`, `GtkColorDialog`, `GtkFontDialog`) and GIO's
+    asynchronous functions report their end to a `GAsyncReadyCallback`, a C
+    function, which a client could not give. `gtk_server_async <key>` returns
+    one, and user data to pass with it; when it is called, GTK-server reports
+    an event with the key, like a signal:
+
+    ```
+    gtk_server_async open-done            -> <callback> <data>
+    gtk_file_dialog_open <dialog> <window> NULL <callback> <data>
+    gtk_server_callback wait              -> open-done
+    gtk_server_callback_value 1 POINTER   -> <result>
+    gtk_file_dialog_open_finish <dialog> <result> NULL   -> <GFile>, or 0 if cancelled
+    g_object_unref <result>
+    ```
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

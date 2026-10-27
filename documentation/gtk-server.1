@@ -570,6 +570,13 @@ Same as gtk_server_mmap_texture, but copies the image into a new GdkPixbuf. The 
 .B gtk_server_mmap_free <handle>
 Removes the buffer and its file. Textures and pixbufs made from the buffer remain valid.
 .TP
+.B gtk_server_async <key>
+Returns the address of a GAsyncReadyCallback and of user data, separated by a space, to pass as the callback and
+user_data arguments of an asynchronous GTK or GIO function, like gtk_file_dialog_open or g_file_query_info_async. When
+the operation ends, the callback reports an event with <key> as gtk_server_callback does for signals, and
+gtk_server_callback_value 1 POINTER gives the GAsyncResult, for the matching _finish function. GTK\-server keeps a
+reference to the result, which the client must release with g_object_unref after the _finish call. GTK3 and GTK4.
+.TP
 .B gtk_server_row_append <store> <id> [value ...]
 Appends a new GtkServerRow to the GListStore <store>, which must have been created for the GtkServerRow type
 (g_type_from_name "GtkServerRow"). A GtkServerRow is an item for list models with an integer property "id" and up to 16

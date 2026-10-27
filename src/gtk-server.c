@@ -2101,6 +2101,23 @@ return FALSE;
 }
 #endif
 
+#if GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
+/* Asynchronous operations (GTK4 dialogs, GIO) report their end through a GAsyncReadyCallback.
+ * gtk_server_async gives the client this callback and a key to pass with it; when it is
+ * called, it reports an event with that key, like a signal, and keeps a reference to the
+ * GAsyncResult for the client's _finish call: gtk_server_callback_value 1 POINTER. */
+static void Async_Callback(GObject *source, GAsyncResult *result, gpointer data)
+{
+Current_Object.object = (void*)source;
+Current_Object.state = (long)result;
+Current_Object.text = (char*)data;
+Current_Object.p1 = 0;
+Current_Object.t1 = (char*)g_object_ref(result);
+/* Keep the event until the client asks for it */
+Queue_Event();
+}
+#endif
+
 #if GTK_SERVER_GTK4x
 /* GTK4 reports the pointer and the keyboard through event controllers, which the client
  * creates and adds to a widget, for example with gtk_gesture_click_new and
@@ -4520,6 +4537,16 @@ if (inputdata != NULL) {
 	unlink(mmaps[i].path);
 	mmaps[i].addr = NULL;
 	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+    }
+    #endif
+    #if GTK_SERVER_GTK3x || GTK_SERVER_GTK4x
+    /* A GAsyncReadyCallback and its user data, for an asynchronous call: key */
+    else if (!strcmp("gtk_server_async", gtk_api_call)) {
+	if ((arg = parse_data(list, ++item)) == NULL){
+	    Print_Error("%s", 1, "\nERROR: Missing key in GTK_SERVER_ASYNC!");
+	}
+	/* Interned, so a key used again takes no more memory */
+	retstr = Print_Result("%s%s%ld %ld%s", 5, gtkserver.pre, gtkserver.handle, (long)Async_Callback, (long)g_intern_string(arg), gtkserver.post);
     }
     #endif
     #if GTK_SERVER_GTK4x

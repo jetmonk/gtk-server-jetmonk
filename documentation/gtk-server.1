@@ -570,6 +570,24 @@ Same as gtk_server_mmap_texture, but copies the image into a new GdkPixbuf. The 
 .B gtk_server_mmap_free <handle>
 Removes the buffer and its file. Textures and pixbufs made from the buffer remain valid.
 .TP
+.B gtk_server_row_append <store> <id> [value ...]
+Appends a new GtkServerRow to the GListStore <store>, which must have been created for the GtkServerRow type
+(g_type_from_name "GtkServerRow"). A GtkServerRow is an item for list models with an integer property "id" and up to 16
+values, which GtkBuilder templates for GtkListView and GtkColumnView can bind to. Each value is stored as a string, in the
+properties c0, c1, ... c15, and can also be read as a boolean (b0 ... b15: true unless empty, "0" or "false") and as a double
+(d0 ... d15), for check buttons, progress bars and numeric sorters. Returns "ok". GTK4 only.
+.TP
+.B gtk_server_row_set <model> <position> <column> <value>
+Changes value <column> (0 to 15) of the GtkServerRow at <position> of the list model <model>. Bindings to its c, b and d
+properties are updated. Returns "ok". GTK4 only.
+.TP
+.B gtk_server_row_id <model> <position>
+Returns the id of the GtkServerRow at <position> of the list model <model>, or \-1 if there is none. With sorted or filtered
+models, this maps a position on screen back to the row. GTK4 only.
+.TP
+.B gtk_server_row_position <model> <id>
+Returns the position of the first GtkServerRow with the id <id> in the list model <model>, or \-1. GTK4 only.
+.TP
 .B gtk_server_macos_icon <file>
 Sets the icon of the GTK\-server in the MacOSX Dock to the image in <file>, which can be any format the
 system reads, like PNG, JPEG, TIFF, ICNS or PDF. Without this, a GTK\-server which is not inside an

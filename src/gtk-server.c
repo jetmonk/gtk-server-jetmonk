@@ -3310,6 +3310,118 @@ while (base != NULL){
 }
 }
 
+#if GTK_SERVER_GTK4x
+/*************************************************************************************************/
+/* GtkServerRow: an item for list models (GListStore), so that GtkColumnView and GtkListView can
+ * show rows of several values from templates (GtkBuilderListItemFactory), without callbacks.
+ * A row has an integer "id" and ROW_COLUMNS values, stored as strings in the properties c0, c1,
+ * ... Each value can also be read as a boolean (b0, b1, ...: true unless empty, "0" or "false")
+ * and as a double (d0, d1, ...), for check buttons, progress bars and numeric sorters. */
+
+#define ROW_COLUMNS 16
+
+typedef struct {
+    GObject parent;
+    int id;
+    char *c[ROW_COLUMNS];
+} GtkServerRow;
+
+typedef struct {
+    GObjectClass parent_class;
+} GtkServerRowClass;
+
+G_DEFINE_TYPE(GtkServerRow, gtk_server_row, G_TYPE_OBJECT)
+
+/* Property ids: 1 is id, then c0..c15, b0..b15, d0..d15 */
+#define ROW_PROP_C 2
+#define ROW_PROP_B (ROW_PROP_C + ROW_COLUMNS)
+#define ROW_PROP_D (ROW_PROP_B + ROW_COLUMNS)
+static GParamSpec *row_props[ROW_PROP_D + ROW_COLUMNS];
+
+static gboolean Row_Boolean(const char *s)
+{
+return s != NULL && *s != '\0' && strcmp(s, "0") && g_ascii_strcasecmp(s, "false");
+}
+
+static void gtk_server_row_set_property(GObject *object, guint id, const GValue *value, GParamSpec *pspec)
+{
+GtkServerRow *row = (GtkServerRow*)object;
+
+if (id == 1) row->id = g_value_get_int(value);
+else if (id >= ROW_PROP_C && id < ROW_PROP_B) {
+    int i = id - ROW_PROP_C;
+    g_free(row->c[i]);
+    row->c[i] = g_value_dup_string(value);
+    /* The other views of the value change with it */
+    g_object_notify_by_pspec(object, row_props[ROW_PROP_B + i]);
+    g_object_notify_by_pspec(object, row_props[ROW_PROP_D + i]);
+}
+else G_OBJECT_WARN_INVALID_PROPERTY_ID(object, id, pspec);
+}
+
+static void gtk_server_row_get_property(GObject *object, guint id, GValue *value, GParamSpec *pspec)
+{
+GtkServerRow *row = (GtkServerRow*)object;
+
+if (id == 1) g_value_set_int(value, row->id);
+else if (id >= ROW_PROP_C && id < ROW_PROP_B) g_value_set_string(value, row->c[id - ROW_PROP_C]);
+else if (id >= ROW_PROP_B && id < ROW_PROP_D) g_value_set_boolean(value, Row_Boolean(row->c[id - ROW_PROP_B]));
+else if (id >= ROW_PROP_D && id < ROW_PROP_D + ROW_COLUMNS) {
+    const char *s = row->c[id - ROW_PROP_D];
+    g_value_set_double(value, s == NULL ? 0 : g_ascii_strtod(s, NULL));
+}
+else G_OBJECT_WARN_INVALID_PROPERTY_ID(object, id, pspec);
+}
+
+static void gtk_server_row_finalize(GObject *object)
+{
+GtkServerRow *row = (GtkServerRow*)object;
+int i;
+
+for (i = 0; i < ROW_COLUMNS; i++) g_free(row->c[i]);
+G_OBJECT_CLASS(gtk_server_row_parent_class)->finalize(object);
+}
+
+static void gtk_server_row_class_init(GtkServerRowClass *klass)
+{
+GObjectClass *object_class = G_OBJECT_CLASS(klass);
+char name[8];
+int i;
+
+object_class->set_property = gtk_server_row_set_property;
+object_class->get_property = gtk_server_row_get_property;
+object_class->finalize = gtk_server_row_finalize;
+row_props[1] = g_param_spec_int("id", NULL, NULL, G_MININT, G_MAXINT, 0, G_PARAM_READWRITE);
+for (i = 0; i < ROW_COLUMNS; i++) {
+    snprintf(name, sizeof(name), "c%d", i);
+    row_props[ROW_PROP_C + i] = g_param_spec_string(name, NULL, NULL, NULL, G_PARAM_READWRITE);
+    snprintf(name, sizeof(name), "b%d", i);
+    row_props[ROW_PROP_B + i] = g_param_spec_boolean(name, NULL, NULL, FALSE, G_PARAM_READABLE);
+    snprintf(name, sizeof(name), "d%d", i);
+    row_props[ROW_PROP_D + i] = g_param_spec_double(name, NULL, NULL, -G_MAXDOUBLE, G_MAXDOUBLE, 0, G_PARAM_READABLE);
+}
+for (i = 1; i < ROW_PROP_D + ROW_COLUMNS; i++)
+    g_object_class_install_property(object_class, i, row_props[i]);
+}
+
+static void gtk_server_row_init(GtkServerRow *row)
+{
+(void)row;
+}
+
+/* The item at POSITION of MODEL as a GtkServerRow, with a reference, or NULL */
+static GtkServerRow *Row_At(GListModel *model, guint position)
+{
+GObject *item = g_list_model_get_item(model, position);
+
+if (item != NULL && !G_TYPE_CHECK_INSTANCE_TYPE(item, gtk_server_row_get_type())) {
+    g_object_unref(item);
+    return NULL;
+}
+return (GtkServerRow*)item;
+}
+#endif
+
 /*************************************************************************************************/
 
 /* This is the argument parser created by Jim Bailey, adjusted slightly to fit into the GTK-server. */
@@ -4408,6 +4520,77 @@ if (inputdata != NULL) {
 	unlink(mmaps[i].path);
 	mmaps[i].addr = NULL;
 	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+    }
+    #endif
+    #if GTK_SERVER_GTK4x
+    /* Rows for list models: append a GtkServerRow to a GListStore: store id value... */
+    else if (!strcmp("gtk_server_row_append", gtk_api_call)) {
+	GtkServerRow *row;
+	char *value = NULL;
+	if ((arg = parse_data(list, ++item)) == NULL || (varname = parse_data(list, ++item)) == NULL){
+	    Print_Error("%s", 1, "\nERROR: Missing store or id in GTK_SERVER_ROW_APPEND!");
+	}
+	if (!G_IS_LIST_STORE((gpointer)atol(arg))){
+	    Print_Error("%s", 1, "\nERROR: Not a GListStore in GTK_SERVER_ROW_APPEND!");
+	}
+	row = g_object_new(gtk_server_row_get_type(), NULL);
+	row->id = atoi(varname);
+	for (i = 0; i < ROW_COLUMNS && (value = parse_data(list, ++item)) != NULL; i++) row->c[i] = g_strdup(value);
+	if (value != NULL && parse_data(list, item + 1) != NULL){
+	    g_object_unref(row);
+	    Print_Error("%s", 1, "\nERROR: Too many values in GTK_SERVER_ROW_APPEND!");
+	}
+	g_list_store_append((GListStore*)atol(arg), row);
+	g_object_unref(row);
+	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+    }
+    /* Change one value of the row at a position of a list model: model position column value */
+    else if (!strcmp("gtk_server_row_set", gtk_api_call)) {
+	GtkServerRow *row = NULL;
+	char *p, *c, *v, name[8];
+	arg = parse_data(list, ++item); p = parse_data(list, ++item); c = parse_data(list, ++item); v = parse_data(list, ++item);
+	if (arg == NULL || p == NULL || c == NULL || v == NULL || atoi(c) < 0 || atoi(c) >= ROW_COLUMNS){
+	    Print_Error("%s", 1, "\nERROR: Missing or invalid argument in GTK_SERVER_ROW_SET!");
+	}
+	if (!G_IS_LIST_MODEL((gpointer)atol(arg)) || (row = Row_At((GListModel*)atol(arg), atoi(p))) == NULL){
+	    Print_Error("%s", 1, "\nERROR: No row at this position in GTK_SERVER_ROW_SET!");
+	}
+	snprintf(name, sizeof(name), "c%d", atoi(c));
+	g_object_set(row, name, v, NULL);
+	g_object_unref(row);
+	retstr = Print_Result("%s%sok%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+    }
+    /* The id of the row at a position of a list model, or -1: model position */
+    else if (!strcmp("gtk_server_row_id", gtk_api_call)) {
+	GtkServerRow *row = NULL;
+	int id = -1;
+	arg = parse_data(list, ++item); varname = parse_data(list, ++item);
+	if (arg == NULL || varname == NULL || !G_IS_LIST_MODEL((gpointer)atol(arg))){
+	    Print_Error("%s", 1, "\nERROR: Missing model or position in GTK_SERVER_ROW_ID!");
+	}
+	if (atol(varname) >= 0 && (row = Row_At((GListModel*)atol(arg), atoi(varname))) != NULL){
+	    id = row->id;
+	    g_object_unref(row);
+	}
+	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, id, gtkserver.post);
+    }
+    /* The position of the row with an id in a list model, or -1: model id */
+    else if (!strcmp("gtk_server_row_position", gtk_api_call)) {
+	GtkServerRow *row;
+	guint n, position = 0;
+	int found = -1;
+	arg = parse_data(list, ++item); varname = parse_data(list, ++item);
+	if (arg == NULL || varname == NULL || !G_IS_LIST_MODEL((gpointer)atol(arg))){
+	    Print_Error("%s", 1, "\nERROR: Missing model or id in GTK_SERVER_ROW_POSITION!");
+	}
+	n = g_list_model_get_n_items((GListModel*)atol(arg));
+	for (position = 0; position < n && found < 0; position++){
+	    if ((row = Row_At((GListModel*)atol(arg), position)) != NULL){
+		if (row->id == atoi(varname)) found = position;
+		g_object_unref(row);
+	    }
+	}
+	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, found, gtkserver.post);
     }
     #endif
     /* Check if we have a GTK function (re-)definition. As you can see both 'redefine' and 'define' follow the same
@@ -6027,6 +6210,8 @@ char *filename;
 gtk_init(NULL, NULL);
 #elif GTK_SERVER_GTK4x
 gtk_init();
+/* Register GtkServerRow, so GtkBuilder templates find it by name */
+g_type_ensure(gtk_server_row_get_type());
 #elif GTK_SERVER_XF
 argv[0] = strdup("");
 fl_initialize(&argc, argv, "XForms", 0, 0);
@@ -6591,6 +6776,8 @@ int init_result = 0;
 gtk_init(NULL, NULL);
 #elif GTK_SERVER_GTK4x
 gtk_init();
+/* Register GtkServerRow, so GtkBuilder templates find it by name */
+g_type_ensure(gtk_server_row_get_type());
 #elif GTK_SERVER_XF
 argv[0] = strdup("");
 fl_initialize(&argc, argv, "XForms", 0, 0);

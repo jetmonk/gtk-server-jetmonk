@@ -1167,6 +1167,18 @@ char *Call_Realize (char*);
 #if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
 int gtk_server_macos_icon(const char *file);	/* In macos.m */
 int gtk_server_macos_full_screen(int allow);	/* In macos.m */
+int gtk_server_macos_appearance(void (*changed)(int dark));	/* In macos.m */
+
+/* Make GTK light or dark, like macOS */
+static void MacOS_Appearance_Changed(int dark)
+{
+#if GTK_SERVER_GTK4x && GTK_CHECK_VERSION(4, 20, 0)
+g_object_set(gtk_settings_get_default(), "gtk-interface-color-scheme",
+	     dark ? GTK_INTERFACE_COLOR_SCHEME_DARK : GTK_INTERFACE_COLOR_SCHEME_LIGHT, NULL);
+#else
+g_object_set(gtk_settings_get_default(), "gtk-application-prefer-dark-theme", dark, NULL);
+#endif
+}
 #endif
 char *base64_enc(char *arg, int len);
 
@@ -4353,6 +4365,19 @@ if (inputdata != NULL) {
 	}
 	#if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
 	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, gtk_server_macos_full_screen(atoi(arg)), gtkserver.post);
+	#else
+	retstr = Print_Result("%s%s0%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+	#endif
+    }
+    /* Follow the light or dark appearance of MacOSX (1) or not (0). Returns 1 if the
+     * appearance is dark, otherwise 0, and 0 on other systems. */
+    else if (!strcmp("gtk_server_macos_appearance", gtk_api_call)){
+	if ((arg = parse_data(list, ++item)) == NULL){
+	    Print_Error("%s", 1, "\nERROR: Missing 0 or 1 in GTK_SERVER_MACOS_APPEARANCE!");
+	}
+	#if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
+	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle,
+			      gtk_server_macos_appearance(atoi(arg) ? MacOS_Appearance_Changed : NULL), gtkserver.post);
 	#else
 	retstr = Print_Result("%s%s0%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#endif

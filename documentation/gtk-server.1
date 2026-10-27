@@ -575,6 +575,11 @@ With 0, the green button of a window zooms it instead of making it full screen, 
 the title bar with its buttons does not come back. Applies to the windows that exist and to new ones. 1 allows full
 screen again, the default. Returns 1, or 0 on other systems.
 .TP
+.B gtk_server_macos_appearance <0|1>
+With 1, GTK follows the light or dark appearance of MacOSX, at once and whenever it changes: GTK's colour scheme
+setting (gtk-interface-color-scheme, or gtk-application-prefer-dark-theme before GTK 4.20) is set to match. 0 stops
+following. Returns 1 if the appearance is dark, otherwise 0, and 0 on other systems.
+.TP
 .B gtk_server_async <key>
 Returns the address of a GAsyncReadyCallback and of user data, separated by a space, to pass as the callback and
 user_data arguments of an asynchronous GTK or GIO function, like gtk_file_dialog_open or g_file_query_info_async. When

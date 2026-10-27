@@ -74,3 +74,43 @@ int gtk_server_macos_full_screen(int allow)
     }
     return 1;
 }
+
+/* Light and dark appearance. GTK does not follow the system's appearance on macOS by
+ * itself. gtk_server_macos_appearance gives a function, which is called with 1 for dark
+ * and 0 for light at once and whenever the appearance changes; NULL stops that. */
+
+static void (*appearance_changed)(int dark) = NULL;
+static id appearance_observer = nil;
+
+static int Is_Dark(void)
+{
+    NSAppearanceName name = [[[NSApplication sharedApplication] effectiveAppearance]
+                                bestMatchFromAppearancesWithNames:@[NSAppearanceNameAqua, NSAppearanceNameDarkAqua]];
+    return [name isEqualToString:NSAppearanceNameDarkAqua] ? 1 : 0;
+}
+
+@interface GtkServerAppearanceObserver : NSObject
+@end
+
+@implementation GtkServerAppearanceObserver
+- (void)observeValueForKeyPath:(NSString *)path ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+{
+    (void)path; (void)object; (void)change; (void)context;
+    if (appearance_changed) appearance_changed(Is_Dark());
+}
+@end
+
+/* Returns 1 if the appearance is dark now, otherwise 0. */
+int gtk_server_macos_appearance(void (*changed)(int dark))
+{
+    @autoreleasepool {
+        appearance_changed = changed;
+        if (changed != NULL && appearance_observer == nil) {
+            appearance_observer = [[GtkServerAppearanceObserver alloc] init];
+            [[NSApplication sharedApplication] addObserver:appearance_observer forKeyPath:@"effectiveAppearance"
+                                                   options:0 context:NULL];
+        }
+        if (changed != NULL) changed(Is_Dark());
+        return Is_Dark();
+    }
+}

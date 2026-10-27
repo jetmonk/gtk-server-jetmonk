@@ -3868,40 +3868,6 @@ return(pixbuf);
 #endif
 
 /*************************************************************************************************/
-/* MacOSX: set the icon in the Dock. A program which is not inside an application bundle gets the  */
-/* generic executable icon. GTK runs on AppKit, so the Objective-C runtime is already loaded and   */
-/* can be called through dlsym, without linking to it.                                             */
-
-#if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
-static int MacOS_Set_Icon(char *file)
-{
-void *(*get_class)(const char*);
-void *(*get_selector)(const char*);
-void *send;
-void *path, *image, *app;
-
-get_class = (void *(*)(const char*))dlsym(RTLD_DEFAULT, "objc_getClass");
-get_selector = (void *(*)(const char*))dlsym(RTLD_DEFAULT, "sel_registerName");
-send = dlsym(RTLD_DEFAULT, "objc_msgSend");
-if(get_class == NULL || get_selector == NULL || send == NULL || file == NULL) return(0);
-
-/* objc_msgSend must be called with the exact arguments of each method, not as a variadic function */
-/* [NSString stringWithUTF8String: file] */
-path = ((void *(*)(void*, void*, const char*))send)(get_class("NSString"), get_selector("stringWithUTF8String:"), file);
-/* [[NSImage alloc] initWithContentsOfFile: path] */
-image = ((void *(*)(void*, void*))send)(get_class("NSImage"), get_selector("alloc"));
-image = ((void *(*)(void*, void*, void*))send)(image, get_selector("initWithContentsOfFile:"), path);
-if(path == NULL || image == NULL) return(0);
-/* [[NSApplication sharedApplication] setApplicationIconImage: image] */
-app = ((void *(*)(void*, void*))send)(get_class("NSApplication"), get_selector("sharedApplication"));
-if(app == NULL) return(0);
-((void (*)(void*, void*, void*))send)(app, get_selector("setApplicationIconImage:"), image);
-
-return(1);
-}
-#endif
-
-/*************************************************************************************************/
 /* Arguments in the variable part of a variadic call are passed with full register size, so 0    */
 /* works as NULL terminator and floats are promoted to double as C requires. FFI: see Prep_Cif.  */
 
@@ -4367,17 +4333,6 @@ if (inputdata != NULL) {
 	#endif
     }
     /* Internal call for OS */
-    /* Set the icon of the application, MacOSX only. Returns 1 if the icon was set, otherwise 0 */
-    else if (!strcmp("gtk_server_macos_icon", gtk_api_call)){
-	if ((arg = parse_data(list, ++item)) == NULL){
-	    Print_Error("%s", 1, "\nERROR: Missing image file in GTK_SERVER_MACOS_ICON!");
-	}
-	#if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
-	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, MacOS_Set_Icon(arg), gtkserver.post);
-	#else
-	retstr = Print_Result("%s%s0%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
-	#endif
-    }
     /* Set the icon of the application in the MacOSX Dock. Returns 1 if the icon was set, otherwise 0 */
     else if (!strcmp("gtk_server_macos_icon", gtk_api_call)){
 	if ((arg = parse_data(list, ++item)) == NULL){

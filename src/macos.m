@@ -28,3 +28,49 @@ int gtk_server_macos_icon(const char *file)
     }
     return 1;
 }
+
+/* Full screen. GTK4 on macOS cannot take a window out of full screen again: the title bar
+ * with its buttons does not come back. Without full screen, the green button of a window
+ * zooms it instead, which GTK handles. Windows are set when this is called, and new ones
+ * as the application updates, since GTK creates them later. */
+
+static BOOL allow_full_screen = YES;
+static id full_screen_observer = nil;
+
+static void Set_Full_Screen(NSWindow *window)
+{
+    NSWindowCollectionBehavior old = [window collectionBehavior];
+    NSWindowCollectionBehavior new = old & ~(NSWindowCollectionBehaviorFullScreenPrimary
+                                            | NSWindowCollectionBehaviorFullScreenAuxiliary
+                                            | NSWindowCollectionBehaviorFullScreenNone);
+
+    if (allow_full_screen) {
+        /* Back to what GTK sets: full screen for windows with a title bar */
+        if ([window styleMask] & NSWindowStyleMaskTitled) new |= NSWindowCollectionBehaviorFullScreenPrimary;
+        else new = old & ~NSWindowCollectionBehaviorFullScreenNone;
+    }
+    else new |= NSWindowCollectionBehaviorFullScreenNone;
+    if (new != old) [window setCollectionBehavior:new];
+}
+
+/* Allow full screen (1) or not (0). Returns 1. */
+int gtk_server_macos_full_screen(int allow)
+{
+    @autoreleasepool {
+        NSApplication *app = [NSApplication sharedApplication];
+
+        allow_full_screen = allow ? YES : NO;
+        for (NSWindow *window in [app windows]) Set_Full_Screen(window);
+        if (full_screen_observer == nil) {
+            full_screen_observer = [[NSNotificationCenter defaultCenter]
+                addObserverForName:NSApplicationDidUpdateNotification object:app queue:nil
+                        usingBlock:^(NSNotification *note) {
+                            (void)note;
+                            if (!allow_full_screen)
+                                for (NSWindow *window in [[NSApplication sharedApplication] windows]) Set_Full_Screen(window);
+                        }];
+            [full_screen_observer retain];
+        }
+    }
+    return 1;
+}

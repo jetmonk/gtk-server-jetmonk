@@ -1166,6 +1166,7 @@ int PTR_BASE64 = 0;
 char *Call_Realize (char*);
 #if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
 int gtk_server_macos_icon(const char *file);	/* In macos.m */
+int gtk_server_macos_full_screen(int allow);	/* In macos.m */
 #endif
 char *base64_enc(char *arg, int len);
 
@@ -4340,6 +4341,18 @@ if (inputdata != NULL) {
 	}
 	#if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
 	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, gtk_server_macos_icon(arg), gtkserver.post);
+	#else
+	retstr = Print_Result("%s%s0%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
+	#endif
+    }
+    /* Allow full screen of windows with the green button (1, the default) or not (0), MacOSX
+     * only. Returns 1, or 0 on other systems. */
+    else if (!strcmp("gtk_server_macos_full_screen", gtk_api_call)){
+	if ((arg = parse_data(list, ++item)) == NULL){
+	    Print_Error("%s", 1, "\nERROR: Missing 0 or 1 in GTK_SERVER_MACOS_FULL_SCREEN!");
+	}
+	#if GTK_SERVER_DARWIN && (GTK_SERVER_GTK3x || GTK_SERVER_GTK4x)
+	retstr = Print_Result("%s%s%d%s", 4, gtkserver.pre, gtkserver.handle, gtk_server_macos_full_screen(atoi(arg)), gtkserver.post);
 	#else
 	retstr = Print_Result("%s%s0%s", 3, gtkserver.pre, gtkserver.handle, gtkserver.post);
 	#endif

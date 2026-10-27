@@ -224,6 +224,37 @@ The commits after the 2.4.7 baseline:
     the position over the widget that sent the signal, and 0, 0 for other
     objects.
 
+14. **Rows for list models, in GTK4.** `GtkListView` and `GtkColumnView`
+    create their rows from list items, normally through callbacks into the
+    program, which a GTK-server client cannot answer in time. A
+    `GtkBuilderListItemFactory` template avoids the callbacks, but it can
+    only show properties of the items, and the only ready-made item a client
+    can fill, `GtkStringObject`, has a single string. GTK-server now has an
+    item type of its own, `GtkServerRow`, with an `id` and up to 16 values.
+    Each value is a string (`c0` to `c15`), and can also be read as a
+    boolean (`b0` ...) and as a double (`d0` ...), so templates can bind
+    labels, check buttons, progress bars and icons to it, and
+    `GtkNumericSorter`s can sort by it:
+
+    ```
+    gtk_server_row_append <store> <id> [value ...]     -> ok
+    gtk_server_row_set <model> <position> <column> <value>   -> ok
+    gtk_server_row_id <model> <position>               -> <id>, or -1
+    gtk_server_row_position <model> <id>               -> <position>, or -1
+    ```
+
+    The store is a `GListStore` of rows (`g_list_store_new` with
+    `g_type_from_name "GtkServerRow"`). `gtk_server_row_id` maps a position
+    on screen back to the row when the model is sorted. A template cell:
+
+    ```xml
+    <object class="GtkLabel">
+      <binding name="label">
+        <lookup name="c1" type="GtkServerRow"><lookup name="item">GtkListItem</lookup></lookup>
+      </binding>
+    </object>
+    ```
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

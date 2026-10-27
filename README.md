@@ -271,6 +271,18 @@ The commits after the 2.4.7 baseline:
     g_object_unref <result>
     ```
 
+16. **No full screen on macOS, if the client asks.** GTK4 on macOS can make
+    a window full screen with the green button, but not undo it: the title
+    bar and its buttons never come back, so the window is stuck.
+    `gtk_server_macos_full_screen 0` makes the green button zoom windows
+    instead, as with Option held down. `1` allows full screen again. On other
+    systems the command does nothing.
+
+    Also on macOS: large windows on a display in a scaled resolution (for
+    example a 4K display set to "looks like 3008 × 1692") are drawn black and
+    distorted by GTK 4.22. That is a GTK bug, which GTK-server cannot work
+    around; at the display's default resolution they are fine.
+
 ## Building on macOS
 
 With GTK and libffi from MacPorts:

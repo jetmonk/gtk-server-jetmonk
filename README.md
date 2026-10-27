@@ -271,12 +271,17 @@ The commits after the 2.4.7 baseline:
     g_object_unref <result>
     ```
 
-16. **No full screen on macOS, if the client asks.** GTK4 on macOS can make
+16. **No full screen on macOS, and the system's light or dark appearance,
+    if the client asks.** GTK4 on macOS can make
     a window full screen with the green button, but not undo it: the title
     bar and its buttons never come back, so the window is stuck.
     `gtk_server_macos_full_screen 0` makes the green button zoom windows
     instead, as with Option held down. `1` allows full screen again. On other
     systems the command does nothing.
+
+    `gtk_server_macos_appearance 1` makes GTK follow macOS's light or dark
+    appearance, also when it changes later, which GTK does not do by
+    itself; it returns 1 when the appearance is dark.
 
     Also on macOS: large windows on a display in a scaled resolution (for
     example a 4K display set to "looks like 3008 × 1692") are drawn black and
